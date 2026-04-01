@@ -12,6 +12,7 @@ class DashboardStats extends StatelessWidget {
     final total = stats['total'] ?? 0;
     final done = stats['done'] ?? 0;
     final pending = stats['pending'] ?? 0;
+    final overdue = stats['overdue'] ?? 0;
     final progress = total > 0 ? done / total : 0.0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -61,8 +62,12 @@ class DashboardStats extends StatelessWidget {
                 Row(
                   children: [
                     _MiniStat(label: 'Done', count: done, color: AppTheme.accentGreen),
-                    const SizedBox(width: 20),
+                    const SizedBox(width: 16),
                     _MiniStat(label: 'Pending', count: pending, color: AppTheme.accentOrange),
+                    if (overdue > 0) ...[
+                      const SizedBox(width: 16),
+                      _MiniStat(label: 'Overdue', count: overdue, color: AppTheme.accentRed),
+                    ],
                   ],
                 ),
               ],

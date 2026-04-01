@@ -79,6 +79,23 @@ const List<String> migrationV3 = [
   "ALTER TABLE chores ADD COLUMN assignment_status TEXT NOT NULL DEFAULT 'unassigned'",
 ];
 
+const String createChoreHistoryTable = '''
+  CREATE TABLE IF NOT EXISTS chore_history (
+    id TEXT PRIMARY KEY,
+    chore_id TEXT NOT NULL,
+    family_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    sync_status TEXT NOT NULL DEFAULT 'pending'
+  )
+''';
+
+// Migration from v3 to v4: add chore_history table
+const List<String> migrationV4 = [
+  createChoreHistoryTable,
+];
+
 const String createSyncMetaTable = '''
   CREATE TABLE IF NOT EXISTS sync_meta (
     key TEXT PRIMARY KEY,
@@ -92,5 +109,6 @@ const List<String> allCreateStatements = [
   createFamilyMembersTable,
   createInvitationsTable,
   createChoresTable,
+  createChoreHistoryTable,
   createSyncMetaTable,
 ];

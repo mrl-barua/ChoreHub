@@ -84,6 +84,12 @@ class _ChoreCardState extends State<ChoreCard> with SingleTickerProviderStateMix
 
     Widget card = Card(
       margin: const EdgeInsets.only(bottom: 10),
+      shape: chore.isOverdue
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: AppTheme.accentRed.withValues(alpha: 0.4), width: 1.5),
+            )
+          : null,
       child: InkWell(
         onTap: widget.onTap,
         borderRadius: BorderRadius.circular(16),
@@ -255,6 +261,7 @@ class _ChoreCardState extends State<ChoreCard> with SingleTickerProviderStateMix
       final date = DateTime.parse(dateStr);
       final now = DateTime.now();
       final diff = date.difference(DateTime(now.year, now.month, now.day)).inDays;
+      if (diff < 0) return 'Overdue';
       if (diff == 0) return 'Today';
       if (diff == 1) return 'Tomorrow';
       if (diff == -1) return 'Yesterday';

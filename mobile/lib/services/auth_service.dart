@@ -50,6 +50,7 @@ class AuthService {
     final db = await _db.database;
     // Clear all local data to prevent cross-user contamination on shared devices
     await db.delete('sync_meta');
+    await db.delete('chore_history');
     await db.delete('chores');
     await db.delete('invitations');
     await db.delete('family_members');

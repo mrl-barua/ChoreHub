@@ -15,6 +15,7 @@ import 'screens/family/family_screen.dart';
 import 'screens/family/create_family_screen.dart';
 import 'screens/family/invite_screen.dart';
 import 'screens/family/invitations_screen.dart';
+import 'screens/analytics/analytics_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'widgets/shell_screen.dart';
 
@@ -116,6 +117,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           ChoreDetailScreen(choreId: state.pathParameters['id']!),
           state,
         ),
+      ),
+      GoRoute(
+        path: '/analytics',
+        pageBuilder: (_, state) => _slideUpPage(const AnalyticsScreen(), state),
       ),
       GoRoute(
         path: '/chores/:id/edit',

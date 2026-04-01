@@ -40,6 +40,16 @@ class Chore {
   bool get isAssignmentAccepted => assignmentStatus == 'accepted';
   bool get isAssignmentDeclined => assignmentStatus == 'declined';
 
+  bool get isOverdue {
+    if (dueDate == null || isDone) return false;
+    try {
+      final due = DateTime.parse(dueDate!);
+      return DateTime.now().isAfter(DateTime(due.year, due.month, due.day, 23, 59, 59));
+    } catch (_) {
+      return false;
+    }
+  }
+
   Chore copyWith({
     String? title,
     String? category,

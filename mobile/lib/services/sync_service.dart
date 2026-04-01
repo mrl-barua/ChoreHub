@@ -4,9 +4,11 @@ import '../models/user.dart';
 import '../models/family.dart';
 import '../models/family_member.dart';
 import '../models/chore.dart';
+import '../models/chore_history.dart';
 import '../models/invitation.dart';
 import '../repositories/chore_repository.dart';
 import '../repositories/family_repository.dart';
+import '../repositories/history_repository.dart';
 import '../repositories/invitation_repository.dart';
 import '../repositories/user_repository.dart';
 import 'api_client.dart';
@@ -17,6 +19,7 @@ class SyncService {
   final DatabaseHelper _db = DatabaseHelper();
   final ChoreRepository _choreRepo = ChoreRepository();
   final FamilyRepository _familyRepo = FamilyRepository();
+  final HistoryRepository _historyRepo = HistoryRepository();
   final InvitationRepository _invitationRepo = InvitationRepository();
   final UserRepository _userRepo = UserRepository();
   final ConnectivityService _connectivity = ConnectivityService();
@@ -41,8 +44,9 @@ class SyncService {
     final pendingFamilies = await _familyRepo.getPendingSync();
     final pendingChores = await _choreRepo.getPendingSync();
     final pendingInvitations = await _invitationRepo.getPendingSync();
+    final pendingHistory = await _historyRepo.getPendingSync();
 
-    if (pendingFamilies.isEmpty && pendingChores.isEmpty && pendingInvitations.isEmpty) return;
+    if (pendingFamilies.isEmpty && pendingChores.isEmpty && pendingInvitations.isEmpty && pendingHistory.isEmpty) return;
 
     await _apiClient.dio.post('/sync/push', data: {
       'families': pendingFamilies.map((f) => {'id': f.id, 'name': f.name}).toList(),
@@ -51,6 +55,7 @@ class SyncService {
           .where((i) => i.status != 'pending')
           .map((i) => {'id': i.id, 'status': i.status})
           .toList(),
+      'choreHistory': pendingHistory.map((h) => h.toJson()).toList(),
     });
 
     for (final f in pendingFamilies) {
@@ -61,6 +66,9 @@ class SyncService {
     }
     for (final i in pendingInvitations) {
       await _invitationRepo.markSynced(i.id);
+    }
+    for (final h in pendingHistory) {
+      await _historyRepo.markSynced(h.id);
     }
   }
 
@@ -73,7 +81,6 @@ class SyncService {
     final response = await _apiClient.dio.get('/sync/pull', queryParameters: {'since': since});
     final data = response.data;
 
-    // Upsert users
     if (data['users'] != null) {
       for (final u in data['users']) {
         final user = User.fromJson(u);
@@ -81,7 +88,6 @@ class SyncService {
       }
     }
 
-    // Upsert families
     if (data['families'] != null) {
       for (final f in data['families']) {
         final family = Family.fromJson(f);
@@ -90,7 +96,6 @@ class SyncService {
       }
     }
 
-    // Upsert family members
     if (data['familyMembers'] != null) {
       for (final m in data['familyMembers']) {
         final member = FamilyMember.fromJson(m);
@@ -99,14 +104,11 @@ class SyncService {
       }
     }
 
-    // Upsert chores
     if (data['chores'] != null) {
       for (final c in data['chores']) {
         final chore = Chore.fromJson(c);
-        // Check if local version is pending - if so, compare updated_at
         final existing = await _choreRepo.getChoreById(chore.id);
         if (existing != null && existing.syncStatus == 'pending') {
-          // Local change is pending - last write wins
           final localTime = DateTime.tryParse(existing.updatedAt ?? '') ?? DateTime(1970);
           final serverTime = DateTime.tryParse(chore.updatedAt ?? '') ?? DateTime(1970);
           if (serverTime.isAfter(localTime)) {
@@ -120,7 +122,6 @@ class SyncService {
       }
     }
 
-    // Upsert invitations
     if (data['invitations'] != null) {
       for (final i in data['invitations']) {
         final invitation = Invitation.fromJson(i);
@@ -129,7 +130,14 @@ class SyncService {
       }
     }
 
-    // Update last sync timestamp
+    if (data['choreHistory'] != null) {
+      for (final h in data['choreHistory']) {
+        final history = ChoreHistory.fromJson(h);
+        await db.insert('chore_history', {...history.toMap(), 'sync_status': 'synced'},
+            conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+    }
+
     await db.insert(
       'sync_meta',
       {'key': 'last_sync_at', 'value': DateTime.now().toUtc().toIso8601String()},

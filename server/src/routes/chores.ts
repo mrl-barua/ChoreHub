@@ -12,9 +12,15 @@ async function verifyFamilyMembership(userId: string, familyId: string): Promise
   return !!member;
 }
 
+async function recordHistory(choreId: string, familyId: string, userId: string, action: string) {
+  await prisma.choreHistory.create({
+    data: { choreId, familyId, userId, action },
+  });
+}
+
 router.post('/', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id, familyId, title, category, timeSlot, assignedTo, status, dueDate } = req.body;
+    const { id, familyId, title, category, timeSlot, assignedTo, status, dueDate, priority, description, recurrence } = req.body;
 
     if (!familyId || !title || !category) {
       res.status(400).json({ error: 'familyId, title, and category are required' });
@@ -35,11 +41,19 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response): Promise<
         timeSlot: timeSlot || null,
         assignedTo: assignedTo || null,
         assignmentStatus: assignedTo ? 'pending_acceptance' : 'unassigned',
+        priority: priority || 'medium',
+        description: description || null,
+        recurrence: recurrence || null,
         status: status || 'pending',
         dueDate: dueDate ? new Date(dueDate) : null,
         createdBy: req.userId!,
       },
     });
+
+    await recordHistory(chore.id, familyId, req.userId!, 'created');
+    if (assignedTo) {
+      await recordHistory(chore.id, familyId, req.userId!, 'assigned');
+    }
 
     res.status(201).json(chore);
   } catch (error) {
@@ -88,9 +102,8 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response): Prom
       return;
     }
 
-    const { title, category, timeSlot, assignedTo, status, dueDate } = req.body;
+    const { title, category, timeSlot, assignedTo, status, dueDate, priority, description, recurrence } = req.body;
 
-    // If assignedTo changes, reset assignment status
     let assignmentStatus: string | undefined;
     if (assignedTo !== undefined) {
       assignmentStatus = assignedTo ? 'pending_acceptance' : 'unassigned';
@@ -106,8 +119,23 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response): Prom
         ...(assignmentStatus !== undefined && { assignmentStatus }),
         ...(status !== undefined && { status }),
         ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
+        ...(priority !== undefined && { priority }),
+        ...(description !== undefined && { description: description || null }),
+        ...(recurrence !== undefined && { recurrence: recurrence || null }),
       },
     });
+
+    // Record history for status changes
+    if (status !== undefined && status !== chore.status) {
+      if (status === 'done') {
+        await recordHistory(id, chore.familyId, req.userId!, 'completed');
+      } else if (status === 'pending' && chore.status === 'done') {
+        await recordHistory(id, chore.familyId, req.userId!, 'reopened');
+      }
+    }
+    if (assignedTo !== undefined && assignedTo !== chore.assignedTo && assignedTo) {
+      await recordHistory(id, chore.familyId, req.userId!, 'assigned');
+    }
 
     res.json(updated);
   } catch (error) {
@@ -116,7 +144,6 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response): Prom
   }
 });
 
-// Assignee accepts or declines a chore assignment
 router.patch('/:id/assignment', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = String(req.params.id);
@@ -147,6 +174,8 @@ router.patch('/:id/assignment', authenticate, async (req: AuthRequest, res: Resp
       where: { id },
       data: { assignmentStatus },
     });
+
+    await recordHistory(id, chore.familyId, req.userId!, assignmentStatus);
 
     res.json(updated);
   } catch (error) {

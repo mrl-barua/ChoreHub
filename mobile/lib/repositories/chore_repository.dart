@@ -57,11 +57,62 @@ class ChoreRepository {
 
   Future<Map<String, int>> getStats(String familyId) async {
     final db = await _db.database;
+    final today = DateTime.now().toIso8601String().substring(0, 10);
     final total = Sqflite.firstIntValue(
         await db.rawQuery('SELECT COUNT(*) FROM chores WHERE family_id = ?', [familyId])) ?? 0;
     final done = Sqflite.firstIntValue(
         await db.rawQuery("SELECT COUNT(*) FROM chores WHERE family_id = ? AND status = 'done'", [familyId])) ?? 0;
-    return {'total': total, 'done': done, 'pending': total - done};
+    final overdue = Sqflite.firstIntValue(
+        await db.rawQuery(
+            "SELECT COUNT(*) FROM chores WHERE family_id = ? AND status != 'done' AND due_date IS NOT NULL AND due_date < ?",
+            [familyId, today])) ?? 0;
+    return {'total': total, 'done': done, 'pending': total - done, 'overdue': overdue};
+  }
+
+  Future<List<Chore>> getOverdueChores(String familyId) async {
+    final db = await _db.database;
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final maps = await db.query(
+      'chores',
+      where: "family_id = ? AND status != 'done' AND due_date IS NOT NULL AND due_date < ?",
+      whereArgs: [familyId, today],
+      orderBy: 'due_date ASC',
+    );
+    return maps.map((m) => Chore.fromMap(m)).toList();
+  }
+
+  Future<List<Chore>> getMyChores(String familyId, String userId) async {
+    final db = await _db.database;
+    final maps = await db.query(
+      'chores',
+      where: "family_id = ? AND assigned_to = ? AND status != 'done'",
+      whereArgs: [familyId, userId],
+      orderBy: 'due_date ASC, created_at DESC',
+    );
+    return maps.map((m) => Chore.fromMap(m)).toList();
+  }
+
+  Future<List<Chore>> getMyPendingAssignments(String familyId, String userId) async {
+    final db = await _db.database;
+    final maps = await db.query(
+      'chores',
+      where: "family_id = ? AND assigned_to = ? AND assignment_status = 'pending_acceptance'",
+      whereArgs: [familyId, userId],
+    );
+    return maps.map((m) => Chore.fromMap(m)).toList();
+  }
+
+  Future<Map<String, int>> getCategoryBreakdown(String familyId) async {
+    final db = await _db.database;
+    final results = await db.rawQuery(
+      'SELECT category, COUNT(*) as count FROM chores WHERE family_id = ? GROUP BY category',
+      [familyId],
+    );
+    final map = <String, int>{};
+    for (final row in results) {
+      map[row['category'] as String] = row['count'] as int;
+    }
+    return map;
   }
 
   Future<List<Chore>> getTodayChores(String familyId, String userId) async {

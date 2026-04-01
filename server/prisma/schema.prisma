@@ -66,6 +66,9 @@ model Chore {
   assignedTo       String?   @map("assigned_to")
   status           String    @default("pending")
   assignmentStatus String    @default("unassigned") @map("assignment_status")
+  priority         String    @default("medium")
+  description      String?
+  recurrence       String?
   dueDate          DateTime? @map("due_date")
   createdBy  String    @map("created_by")
   createdAt  DateTime  @default(now()) @map("created_at")
@@ -74,4 +77,15 @@ model Chore {
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@map("chores")
+}
+
+model ChoreHistory {
+  id        String   @id @default(uuid())
+  choreId   String   @map("chore_id")
+  familyId  String   @map("family_id")
+  userId    String   @map("user_id")
+  action    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("chore_history")
 }

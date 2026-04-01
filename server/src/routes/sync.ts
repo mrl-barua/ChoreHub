@@ -16,11 +16,11 @@ router.get('/pull', authenticate, async (req: AuthRequest, res: Response): Promi
     const familyIds = memberships.map((m) => m.familyId);
 
     if (familyIds.length === 0) {
-      res.json({ families: [], familyMembers: [], chores: [], invitations: [], users: [] });
+      res.json({ families: [], familyMembers: [], chores: [], invitations: [], users: [], choreHistory: [] });
       return;
     }
 
-    const [families, familyMembers, chores, invitations] = await Promise.all([
+    const [families, familyMembers, chores, invitations, choreHistory] = await Promise.all([
       prisma.family.findMany({
         where: { id: { in: familyIds }, updatedAt: { gt: sinceDate } },
       }),
@@ -36,6 +36,11 @@ router.get('/pull', authenticate, async (req: AuthRequest, res: Response): Promi
           updatedAt: { gt: sinceDate },
         },
       }),
+      prisma.choreHistory.findMany({
+        where: { familyId: { in: familyIds }, createdAt: { gt: sinceDate } },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
     ]);
 
     const userIds = new Set<string>();
@@ -48,13 +53,14 @@ router.get('/pull', authenticate, async (req: AuthRequest, res: Response): Promi
       userIds.add(i.fromUserId);
       userIds.add(i.toUserId);
     });
+    choreHistory.forEach((h) => userIds.add(h.userId));
 
     const users = await prisma.user.findMany({
       where: { id: { in: Array.from(userIds) } },
       select: { id: true, username: true, displayName: true, email: true, createdAt: true, updatedAt: true },
     });
 
-    res.json({ families, familyMembers, chores, invitations, users });
+    res.json({ families, familyMembers, chores, invitations, users, choreHistory });
   } catch (error) {
     console.error('Sync pull error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -63,7 +69,7 @@ router.get('/pull', authenticate, async (req: AuthRequest, res: Response): Promi
 
 router.post('/push', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { families, chores, invitations } = req.body;
+    const { families, chores, invitations, choreHistory } = req.body;
 
     if (families?.length) {
       for (const family of families) {
@@ -96,6 +102,9 @@ router.post('/push', authenticate, async (req: AuthRequest, res: Response): Prom
             timeSlot: chore.timeSlot || null,
             assignedTo: chore.assignedTo || null,
             assignmentStatus: chore.assignmentStatus || (chore.assignedTo ? 'pending_acceptance' : 'unassigned'),
+            priority: chore.priority || 'medium',
+            description: chore.description || null,
+            recurrence: chore.recurrence || null,
             status: chore.status || 'pending',
             dueDate: chore.dueDate ? new Date(chore.dueDate) : null,
             createdBy: req.userId!,
@@ -106,6 +115,9 @@ router.post('/push', authenticate, async (req: AuthRequest, res: Response): Prom
             timeSlot: chore.timeSlot || null,
             assignedTo: chore.assignedTo || null,
             assignmentStatus: chore.assignmentStatus || undefined,
+            priority: chore.priority || undefined,
+            description: chore.description !== undefined ? (chore.description || null) : undefined,
+            recurrence: chore.recurrence !== undefined ? (chore.recurrence || null) : undefined,
             status: chore.status || 'pending',
             dueDate: chore.dueDate ? new Date(chore.dueDate) : null,
           },
@@ -133,6 +145,24 @@ router.post('/push', authenticate, async (req: AuthRequest, res: Response): Prom
               }
             }
           }
+        }
+      }
+    }
+
+    if (choreHistory?.length) {
+      for (const h of choreHistory) {
+        const existing = await prisma.choreHistory.findUnique({ where: { id: h.id } });
+        if (!existing) {
+          await prisma.choreHistory.create({
+            data: {
+              id: h.id,
+              choreId: h.choreId,
+              familyId: h.familyId,
+              userId: h.userId,
+              action: h.action,
+              createdAt: new Date(h.createdAt),
+            },
+          });
         }
       }
     }

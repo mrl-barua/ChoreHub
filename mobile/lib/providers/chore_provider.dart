@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/chore.dart';
+import '../models/chore_history.dart';
 import '../repositories/chore_repository.dart';
+import '../repositories/history_repository.dart';
 import '../services/api_client.dart';
 import '../services/connectivity_service.dart';
 import '../services/sync_service.dart';
@@ -39,6 +41,7 @@ class ChoreState {
 
 class ChoreNotifier extends Notifier<ChoreState> {
   final ChoreRepository _repo = ChoreRepository();
+  final HistoryRepository _historyRepo = HistoryRepository();
   final SyncService _syncService = SyncService();
 
   @override
@@ -73,8 +76,13 @@ class ChoreNotifier extends Notifier<ChoreState> {
     final family = ref.read(familyProvider).currentFamily;
     if (family == null) return;
 
-    final filterValue = filter == 'all' ? null : filter;
-    final chores = await _repo.getChoresByFamily(family.id, statusFilter: filterValue);
+    List<Chore> chores;
+    if (filter == 'overdue') {
+      chores = await _repo.getOverdueChores(family.id);
+    } else {
+      final filterValue = filter == 'all' ? null : filter;
+      chores = await _repo.getChoresByFamily(family.id, statusFilter: filterValue);
+    }
     final stats = await _repo.getStats(family.id);
     final sorted = _sortChores(chores, state.sort);
 
@@ -139,8 +147,24 @@ class ChoreNotifier extends Notifier<ChoreState> {
     );
 
     await _repo.insertChore(chore);
+    await _recordHistory(chore.id, family.id, user.id, 'created');
+    if (assignedTo != null) {
+      await _recordHistory(chore.id, family.id, user.id, 'assigned');
+    }
     await loadChores();
     _syncService.sync();
+  }
+
+  Future<void> _recordHistory(String choreId, String familyId, String userId, String action) async {
+    final entry = ChoreHistory(
+      id: const Uuid().v4(),
+      choreId: choreId,
+      familyId: familyId,
+      userId: userId,
+      action: action,
+      createdAt: DateTime.now().toIso8601String(),
+    );
+    await _historyRepo.recordAction(entry);
   }
 
   Future<void> toggleStatus(String choreId) async {
@@ -153,6 +177,10 @@ class ChoreNotifier extends Notifier<ChoreState> {
       syncStatus: 'pending',
     );
     await _repo.updateChore(updated);
+    final user = ref.read(authProvider).user;
+    if (user != null) {
+      await _recordHistory(choreId, chore.familyId, user.id, chore.isDone ? 'reopened' : 'completed');
+    }
     await loadChores();
     _syncService.sync();
   }
@@ -184,6 +212,10 @@ class ChoreNotifier extends Notifier<ChoreState> {
             syncStatus: 'synced',
           );
           await _repo.updateChore(updated);
+          final user = ref.read(authProvider).user;
+          if (user != null) {
+            await _recordHistory(choreId, chore.familyId, user.id, assignmentStatus);
+          }
         }
         await loadChores();
         return true;

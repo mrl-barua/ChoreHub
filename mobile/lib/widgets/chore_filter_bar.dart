@@ -23,6 +23,8 @@ class ChoreFilterBar extends StatelessWidget {
           _FilterChip(label: 'Pending', value: 'pending', current: currentFilter, onSelected: onFilterChanged, icon: Icons.schedule_rounded),
           const SizedBox(width: 8),
           _FilterChip(label: 'Done', value: 'done', current: currentFilter, onSelected: onFilterChanged, icon: Icons.check_circle_outline_rounded),
+          const SizedBox(width: 8),
+          _FilterChip(label: 'Overdue', value: 'overdue', current: currentFilter, onSelected: onFilterChanged, icon: Icons.warning_rounded),
         ],
       ),
     );
