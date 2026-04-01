@@ -17,61 +17,89 @@ class ShellScreen extends ConsumerWidget {
     return 0;
   }
 
+  static const _routes = ['/dashboard', '/chores', '/chat', '/family', '/profile'];
+  static const _icons = [
+    Icons.home_rounded,
+    Icons.checklist_rounded,
+    Icons.chat_bubble_rounded,
+    Icons.people_rounded,
+    Icons.person_rounded,
+  ];
+  static const _outlinedIcons = [
+    Icons.home_outlined,
+    Icons.checklist_outlined,
+    Icons.chat_bubble_outline_rounded,
+    Icons.people_outline_rounded,
+    Icons.person_outline_rounded,
+  ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isOnline = ref.watch(isOnlineProvider);
+    final currentIndex = _currentIndex(context);
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
       body: Column(
         children: [
-          AnimatedSize(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-            child: !isOnline
-                ? Container(
-                    width: double.infinity,
-                    color: Colors.orange.shade700,
-                    padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 4, bottom: 6, left: 16, right: 16),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.wifi_off_rounded, size: 14, color: Colors.white),
-                        SizedBox(width: 6),
-                        Text(
-                          'Offline mode - changes will sync later',
-                          style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
+          if (!isOnline)
+            Container(
+              width: double.infinity,
+              color: Colors.orange.shade700,
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + 4,
+                bottom: 6, left: 16, right: 16,
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.wifi_off_rounded, size: 14, color: Colors.white),
+                  SizedBox(width: 6),
+                  Text('Offline - changes will sync later',
+                      style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
           Expanded(child: child),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex(context),
-        onDestinationSelected: (index) {
-          switch (index) {
-            case 0:
-              context.go('/dashboard');
-            case 1:
-              context.go('/chores');
-            case 2:
-              context.go('/chat');
-            case 3:
-              context.go('/family');
-            case 4:
-              context.go('/profile');
-          }
-        },
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard_rounded), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.task_outlined), selectedIcon: Icon(Icons.task_rounded), label: 'Chores'),
-          NavigationDestination(icon: Icon(Icons.chat_outlined), selectedIcon: Icon(Icons.chat_rounded), label: 'Chat'),
-          NavigationDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people_rounded), label: 'Family'),
-          NavigationDestination(icon: Icon(Icons.person_outlined), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
-        ],
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+          child: Container(
+            height: 60,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1C24),
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(5, (index) {
+                final isSelected = currentIndex == index;
+                return GestureDetector(
+                  onTap: () => context.go(_routes[index]),
+                  behavior: HitTestBehavior.opaque,
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Icon(
+                      isSelected ? _icons[index] : _outlinedIcons[index],
+                      size: 22,
+                      color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.35),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
       ),
     );
   }
