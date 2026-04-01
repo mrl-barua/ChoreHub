@@ -95,12 +95,11 @@ class MessageBubble extends StatelessWidget {
                 _buildRichText(context),
 
                 // Chore attachment card
-                if (message.hasChoreAttachment && message.chore != null) ...[
+                if (message.hasChoreAttachment) ...[
                   const SizedBox(height: 8),
-                  _buildChoreCard(context),
-                ] else if (message.hasChoreAttachment) ...[
-                  const SizedBox(height: 8),
-                  _buildChoreIdFallback(context),
+                  message.chore != null
+                      ? _buildChoreCard(context)
+                      : _buildChoreIdFallback(context),
                 ],
 
                 // Timestamp
@@ -246,19 +245,34 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildChoreIdFallback(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: (isMe ? Colors.white : Colors.grey).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.task_rounded, size: 16, color: isMe ? Colors.white70 : Colors.grey),
-          const SizedBox(width: 6),
-          Text('Chore attached', style: TextStyle(fontSize: 12, color: isMe ? Colors.white70 : Colors.grey)),
-        ],
+    return GestureDetector(
+      onTap: onChoreTap,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: (isMe ? Colors.white : const Color(0xFF6C63FF)).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: (isMe ? Colors.white : const Color(0xFF6C63FF)).withValues(alpha: 0.2),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.task_rounded, size: 18, color: isMe ? Colors.white70 : const Color(0xFF6C63FF)),
+            const SizedBox(width: 8),
+            Text(
+              'View chore',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isMe ? Colors.white : const Color(0xFF6C63FF),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.open_in_new_rounded, size: 14, color: isMe ? Colors.white54 : Colors.grey.shade400),
+          ],
+        ),
       ),
     );
   }

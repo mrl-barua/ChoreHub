@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../config/theme.dart';
+import '../../db/database_helper.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/family_provider.dart';
+import '../../repositories/chore_repository.dart';
+import '../../repositories/history_repository.dart';
 import '../../widgets/animated_list_item.dart';
 import '../../widgets/empty_state.dart';
 
@@ -13,16 +18,63 @@ class FamilyScreen extends ConsumerStatefulWidget {
 }
 
 class _FamilyScreenState extends ConsumerState<FamilyScreen> {
+  Map<String, int> _memberChoreCount = {};
+  Map<String, int> _memberCompletedCount = {};
+  int _totalChores = 0;
+  int _completedChores = 0;
+
   @override
   void initState() {
     super.initState();
-    // Auto-sync when family screen opens to get latest members
-    Future.microtask(() => ref.read(familyProvider.notifier).refreshWithSync());
+    Future.microtask(() async {
+      await ref.read(familyProvider.notifier).refreshWithSync();
+      await _loadMemberStats();
+    });
+  }
+
+  Future<void> _loadMemberStats() async {
+    final family = ref.read(familyProvider).currentFamily;
+    if (family == null) return;
+
+    final choreRepo = ChoreRepository();
+    final historyRepo = HistoryRepository();
+    final stats = await choreRepo.getStats(family.id);
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
+    final completions = await historyRepo.getCompletionCountsByUser(family.id, startOfMonth, now.toIso8601String());
+
+    final choreCount = <String, int>{};
+    final completedCount = <String, int>{};
+
+    // Count assigned chores per member
+    final db = await DatabaseHelper().database;
+    for (final member in ref.read(familyProvider).members) {
+      final count = await db.rawQuery(
+        "SELECT COUNT(*) as c FROM chores WHERE family_id = ? AND assigned_to = ?",
+        [family.id, member.userId],
+      );
+      choreCount[member.userId] = (count.first['c'] as int?) ?? 0;
+    }
+
+    for (final row in completions) {
+      completedCount[row['user_id'] as String] = row['count'] as int;
+    }
+
+    if (mounted) {
+      setState(() {
+        _memberChoreCount = choreCount;
+        _memberCompletedCount = completedCount;
+        _totalChores = stats['total'] ?? 0;
+        _completedChores = stats['done'] ?? 0;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final family = ref.watch(familyProvider);
+    final currentUser = ref.watch(authProvider).user;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (family.currentFamily == null) {
       return Scaffold(
@@ -55,11 +107,6 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
         title: Text(family.currentFamily!.name),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => ref.read(familyProvider.notifier).refreshWithSync(),
-            tooltip: 'Refresh',
-          ),
-          IconButton(
             icon: const Icon(Icons.mail_outline_rounded),
             onPressed: () => context.push('/family/invitations'),
             tooltip: 'Invitations',
@@ -67,18 +114,129 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => ref.read(familyProvider.notifier).refreshWithSync(),
+        onRefresh: () async {
+          await ref.read(familyProvider.notifier).refreshWithSync();
+          await _loadMemberStats();
+        },
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
           children: [
+            // Family stats header
             AnimatedListItem(
               index: 0,
-              child: Text('Members (${family.members.length})',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDark
+                        ? [const Color(0xFF2A2A40), const Color(0xFF1E1E2A)]
+                        : [const Color(0xFF6C63FF), const Color(0xFF9B59FF)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF6C63FF).withValues(alpha: isDark ? 0.1 : 0.25),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.family_restroom_rounded, color: Colors.white, size: 26),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                family.currentFamily!.name,
+                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white),
+                              ),
+                              Text(
+                                '${family.members.length} member${family.members.length != 1 ? 's' : ''}',
+                                style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        _HeaderStat(icon: Icons.task_rounded, label: 'Total', value: '$_totalChores', color: Colors.white),
+                        const SizedBox(width: 16),
+                        _HeaderStat(icon: Icons.check_circle_rounded, label: 'Done', value: '$_completedChores', color: AppTheme.accentGreen),
+                        const SizedBox(width: 16),
+                        _HeaderStat(icon: Icons.pending_rounded, label: 'Pending', value: '${_totalChores - _completedChores}', color: AppTheme.accentOrange),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Quick actions
+            AnimatedListItem(
+              index: 1,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _ActionCard(
+                      icon: Icons.person_add_rounded,
+                      label: 'Invite\nMember',
+                      color: const Color(0xFF6C63FF),
+                      onTap: () => context.push('/family/invite'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _ActionCard(
+                      icon: Icons.chat_rounded,
+                      label: 'Family\nChat',
+                      color: AppTheme.accentBlue,
+                      onTap: () => context.go('/chat'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _ActionCard(
+                      icon: Icons.analytics_rounded,
+                      label: 'View\nAnalytics',
+                      color: AppTheme.accentGreen,
+                      onTap: () => context.push('/analytics'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Members section
+            AnimatedListItem(
+              index: 2,
+              child: const Text('Members', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             ),
             const SizedBox(height: 12),
             ...family.members.asMap().entries.map((entry) {
               final member = entry.value;
+              final isCurrentUser = member.userId == currentUser?.id;
+              final assignedCount = _memberChoreCount[member.userId] ?? 0;
+              final completedCount = _memberCompletedCount[member.userId] ?? 0;
               final colors = [
                 const Color(0xFF6C63FF),
                 const Color(0xFF00C853),
@@ -89,40 +247,96 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
               final avatarColor = colors[entry.key % colors.length];
 
               return AnimatedListItem(
-                index: entry.key + 1,
+                index: entry.key + 3,
                 child: Card(
                   margin: const EdgeInsets.only(bottom: 10),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    leading: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: avatarColor.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          (member.user?.displayName ?? '?')[0].toUpperCase(),
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: avatarColor),
-                        ),
-                      ),
-                    ),
-                    title: Text(member.user?.displayName ?? 'Unknown',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text('@${member.user?.username ?? ''}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                    trailing: member.role == 'admin'
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6C63FF).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: avatarColor.withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  (member.user?.displayName ?? '?')[0].toUpperCase(),
+                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: avatarColor),
+                                ),
+                              ),
                             ),
-                            child: const Text('Admin',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6C63FF))),
-                          )
-                        : null,
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          member.user?.displayName ?? 'Unknown',
+                                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (isCurrentUser)
+                                        Padding(
+                                          padding: const EdgeInsets.only(left: 6),
+                                          child: Text('(You)', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text('@${member.user?.username ?? ''}',
+                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                                ],
+                              ),
+                            ),
+                            if (member.role == 'admin')
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6C63FF).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Text('Admin',
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6C63FF))),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Member stats row
+                        Row(
+                          children: [
+                            _MemberStatChip(
+                              icon: Icons.assignment_rounded,
+                              label: '$assignedCount assigned',
+                              color: AppTheme.accentBlue,
+                            ),
+                            const SizedBox(width: 8),
+                            _MemberStatChip(
+                              icon: Icons.check_circle_rounded,
+                              label: '$completedCount done',
+                              color: AppTheme.accentGreen,
+                            ),
+                            const Spacer(),
+                            if (completedCount > 0)
+                              Row(
+                                children: [
+                                  const Icon(Icons.local_fire_department_rounded, size: 16, color: Color(0xFFFF9100)),
+                                  const SizedBox(width: 2),
+                                  Text('$completedCount', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFFF9100))),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -138,3 +352,89 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     );
   }
 }
+
+class _HeaderStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+  const _HeaderStat({required this.icon, required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 4),
+            Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+            Text(label, style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.7))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _ActionCard({required this.icon, required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 26),
+            const SizedBox(height: 8),
+            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color), textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MemberStatChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _MemberStatChip({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+        ],
+      ),
+    );
+  }
+}
+

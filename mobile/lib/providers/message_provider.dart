@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/message.dart';
+import '../repositories/chore_repository.dart';
 import '../repositories/message_repository.dart';
 import '../services/api_client.dart';
 import '../services/connectivity_service.dart';
@@ -25,6 +26,7 @@ class MessageState {
 
 class MessageNotifier extends Notifier<MessageState> {
   final MessageRepository _repo = MessageRepository();
+  final ChoreRepository _choreRepo = ChoreRepository();
   final SocketService _socket = SocketService();
   final ApiClient _apiClient = ApiClient();
   StreamSubscription<Message>? _messageSub;
@@ -51,10 +53,11 @@ class MessageNotifier extends Notifier<MessageState> {
     // Listen for incoming messages
     _messageSub = _socket.onMessage.listen((message) async {
       await _repo.insertMessage(message);
+      final enriched = await _enrichMessage(message);
       final current = state.messages;
-      if (!current.any((m) => m.id == message.id)) {
+      if (!current.any((m) => m.id == enriched.id)) {
         state = MessageState(
-          messages: [...current, message],
+          messages: [...current, enriched],
           typingUserIds: state.typingUserIds,
           hasMore: state.hasMore,
         );
@@ -107,9 +110,10 @@ class MessageNotifier extends Notifier<MessageState> {
       } catch (_) {}
     }
 
-    // Load from local DB
+    // Load from local DB and enrich with chore data
     final messages = await _repo.getMessages(family.id, limit: 50);
-    state = MessageState(messages: messages, hasMore: messages.length >= 50);
+    final enriched = await _enrichMessages(messages);
+    state = MessageState(messages: enriched, hasMore: messages.length >= 50);
   }
 
   Future<void> loadMore() async {
@@ -190,11 +194,44 @@ class MessageNotifier extends Notifier<MessageState> {
 
     _socket.sendTyping(family.id);
 
-    // Auto stop typing after 2 seconds of inactivity
     _typingTimer?.cancel();
     _typingTimer = Timer(const Duration(seconds: 2), () {
       _socket.sendStopTyping(family.id);
     });
+  }
+
+  /// Enrich a single message with chore data from local DB
+  Future<Message> _enrichMessage(Message msg) async {
+    if (msg.choreId == null || msg.choreId!.isEmpty || msg.chore != null) return msg;
+    final chore = await _choreRepo.getChoreById(msg.choreId!);
+    if (chore == null) return msg;
+    return Message(
+      id: msg.id,
+      familyId: msg.familyId,
+      userId: msg.userId,
+      text: msg.text,
+      createdAt: msg.createdAt,
+      syncStatus: msg.syncStatus,
+      userName: msg.userName,
+      choreId: msg.choreId,
+      mentions: msg.mentions,
+      chore: ChoreAttachment(
+        id: chore.id,
+        title: chore.title,
+        status: chore.status,
+        category: chore.category,
+        assignedTo: chore.assignedTo,
+      ),
+    );
+  }
+
+  /// Enrich a list of messages
+  Future<List<Message>> _enrichMessages(List<Message> messages) async {
+    final result = <Message>[];
+    for (final msg in messages) {
+      result.add(await _enrichMessage(msg));
+    }
+    return result;
   }
 }
 
