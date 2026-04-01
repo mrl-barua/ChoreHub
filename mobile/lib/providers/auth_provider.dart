@@ -6,6 +6,7 @@ import '../services/sync_service.dart';
 import 'chore_provider.dart';
 import 'family_provider.dart';
 import 'invitation_provider.dart';
+import 'message_provider.dart';
 
 class AuthState {
   final User? user;
@@ -36,6 +37,7 @@ class AuthNotifier extends Notifier<AuthState> {
         ref.invalidate(familyProvider);
         ref.invalidate(choreProvider);
         ref.invalidate(invitationProvider);
+      ref.invalidate(messageProvider);
       } else {
         state = AuthState();
       }
@@ -55,6 +57,7 @@ class AuthNotifier extends Notifier<AuthState> {
       ref.invalidate(familyProvider);
       ref.invalidate(choreProvider);
       ref.invalidate(invitationProvider);
+      ref.invalidate(messageProvider);
     } catch (e) {
       // No user on error — must not keep a stale user in state
       state = AuthState(error: _extractError(e));
@@ -79,6 +82,7 @@ class AuthNotifier extends Notifier<AuthState> {
       ref.invalidate(familyProvider);
       ref.invalidate(choreProvider);
       ref.invalidate(invitationProvider);
+      ref.invalidate(messageProvider);
     } catch (e) {
       state = AuthState(error: _extractError(e));
     }

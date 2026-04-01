@@ -16,6 +16,7 @@ import 'screens/family/create_family_screen.dart';
 import 'screens/family/invite_screen.dart';
 import 'screens/family/invitations_screen.dart';
 import 'screens/analytics/analytics_screen.dart';
+import 'screens/chat/chat_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'widgets/shell_screen.dart';
 
@@ -103,6 +104,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
           GoRoute(path: '/chores', builder: (_, __) => const ChoreListScreen()),
+          GoRoute(path: '/chat', builder: (_, __) => const ChatScreen()),
           GoRoute(path: '/family', builder: (_, __) => const FamilyScreen()),
           GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
         ],

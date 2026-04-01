@@ -96,6 +96,22 @@ const List<String> migrationV4 = [
   createChoreHistoryTable,
 ];
 
+const String createMessagesTable = '''
+  CREATE TABLE IF NOT EXISTS messages (
+    id TEXT PRIMARY KEY,
+    family_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    text TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    sync_status TEXT NOT NULL DEFAULT 'synced'
+  )
+''';
+
+// Migration from v4 to v5: add messages table
+const List<String> migrationV5 = [
+  createMessagesTable,
+];
+
 const String createSyncMetaTable = '''
   CREATE TABLE IF NOT EXISTS sync_meta (
     key TEXT PRIMARY KEY,
@@ -110,5 +126,6 @@ const List<String> allCreateStatements = [
   createInvitationsTable,
   createChoresTable,
   createChoreHistoryTable,
+  createMessagesTable,
   createSyncMetaTable,
 ];
