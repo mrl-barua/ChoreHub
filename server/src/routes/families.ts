@@ -76,4 +76,61 @@ router.get('/:id/members', authenticate, async (req: AuthRequest, res: Response)
   }
 });
 
+// Leave family (self) or remove member (admin only)
+router.delete('/:id/members/:userId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const familyId = String(req.params.id);
+    const targetUserId = String(req.params.userId);
+
+    const requester = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId: req.userId! } },
+    });
+    if (!requester) {
+      res.status(403).json({ error: 'Not a member of this family' });
+      return;
+    }
+
+    const isSelf = targetUserId === req.userId;
+    if (!isSelf && requester.role !== 'admin') {
+      res.status(403).json({ error: 'Only admins can remove other members' });
+      return;
+    }
+
+    // Don't allow the last admin to leave
+    if (isSelf && requester.role === 'admin') {
+      const adminCount = await prisma.familyMember.count({
+        where: { familyId, role: 'admin' },
+      });
+      if (adminCount <= 1) {
+        // Check if there are other members to transfer admin to
+        const otherMembers = await prisma.familyMember.findMany({
+          where: { familyId, userId: { not: req.userId! } },
+        });
+        if (otherMembers.length > 0) {
+          // Transfer admin to the next member
+          await prisma.familyMember.update({
+            where: { id: otherMembers[0].id },
+            data: { role: 'admin' },
+          });
+        }
+      }
+    }
+
+    await prisma.familyMember.delete({
+      where: { familyId_userId: { familyId, userId: targetUserId } },
+    });
+
+    // Unassign chores that were assigned to the removed user
+    await prisma.chore.updateMany({
+      where: { familyId, assignedTo: targetUserId },
+      data: { assignedTo: null, assignmentStatus: 'unassigned' },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Remove member error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

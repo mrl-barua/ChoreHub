@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
 import '../../db/database_helper.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
 import '../../repositories/chore_repository.dart';
 import '../../repositories/history_repository.dart';
+import '../../services/api_client.dart';
 import '../../widgets/animated_list_item.dart';
 import '../../widgets/empty_state.dart';
 
@@ -70,11 +72,78 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     }
   }
 
+  Future<void> _leaveFamily() async {
+    final family = ref.read(familyProvider).currentFamily;
+    final user = ref.read(authProvider).user;
+    if (family == null || user == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Leave Family'),
+        content: const Text('Are you sure you want to leave this family? Your assigned chores will be unassigned.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text('Leave', style: TextStyle(color: AppTheme.accentRed)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    try {
+      await ApiClient().dio.delete('/families/${family.id}/members/${user.id}');
+      ref.invalidate(familyProvider);
+      ref.invalidate(choreProvider);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to leave family')));
+      }
+    }
+  }
+
+  Future<void> _removeMember(String targetUserId, String displayName) async {
+    final family = ref.read(familyProvider).currentFamily;
+    if (family == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove Member'),
+        content: Text('Remove $displayName from the family? Their assigned chores will be unassigned.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text('Remove', style: TextStyle(color: AppTheme.accentRed)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    try {
+      await ApiClient().dio.delete('/families/${family.id}/members/$targetUserId');
+      await ref.read(familyProvider.notifier).refreshWithSync();
+      await _loadMemberStats();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$displayName removed')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to remove member')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final family = ref.watch(familyProvider);
     final currentUser = ref.watch(authProvider).user;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currentUserIsAdmin = family.members.any((m) => m.userId == currentUser?.id && m.role == 'admin');
 
     if (family.currentFamily == null) {
       return Scaffold(
@@ -297,16 +366,31 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                                 ],
                               ),
                             ),
-                            if (member.role == 'admin')
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF6C63FF).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Text('Admin',
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6C63FF))),
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (member.role == 'admin')
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF6C63FF).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Text('Admin',
+                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6C63FF))),
+                                  ),
+                                // Show remove button if current user is admin and this is not self
+                                if (currentUserIsAdmin && !isCurrentUser) ...[
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    icon: Icon(Icons.remove_circle_outline_rounded, size: 20, color: Colors.grey.shade400),
+                                    onPressed: () => _removeMember(member.userId, member.user?.displayName ?? 'this member'),
+                                    tooltip: 'Remove member',
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                ],
+                              ],
+                            ),
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -341,6 +425,21 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                 ),
               );
             }),
+
+            // Leave family button
+            const SizedBox(height: 24),
+            AnimatedListItem(
+              index: family.members.length + 4,
+              child: OutlinedButton.icon(
+                onPressed: _leaveFamily,
+                icon: const Icon(Icons.exit_to_app_rounded),
+                label: const Text('Leave Family'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.accentRed,
+                  side: BorderSide(color: AppTheme.accentRed.withValues(alpha: 0.5)),
+                ),
+              ),
+            ),
           ],
         ),
       ),
