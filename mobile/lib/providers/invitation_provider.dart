@@ -92,10 +92,29 @@ class InvitationNotifier extends Notifier<InvitationState> {
     }
   }
 
-  Future<void> respondToInvitation(String id, String status) async {
-    await _repo.updateStatus(id, status);
-    await _syncService.sync();
-    await loadInvitations();
+  Future<bool> respondToInvitation(String id, String status) async {
+    // Try to call the server directly first (proper accept/decline flow)
+    if (ConnectivityService().isOnline) {
+      try {
+        await _apiClient.dio.patch('/invitations/$id', data: {'status': status});
+        await _repo.updateStatus(id, status);
+        // Sync to pull the new family membership data
+        await _syncService.sync();
+        await loadInvitations();
+        return true;
+      } catch (_) {
+        state = InvitationState(
+          incoming: state.incoming,
+          error: 'Failed to respond. Please try again.',
+        );
+        return false;
+      }
+    } else {
+      // Offline: queue locally for later sync
+      await _repo.updateStatus(id, status);
+      await loadInvitations();
+      return true;
+    }
   }
 
   void clearSearch() {

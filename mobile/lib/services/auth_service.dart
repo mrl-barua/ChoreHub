@@ -48,7 +48,13 @@ class AuthService {
   Future<void> logout() async {
     await _apiClient.clearTokens();
     final db = await _db.database;
-    await db.delete('sync_meta', where: 'key = ?', whereArgs: ['current_user_id']);
+    // Clear all local data to prevent cross-user contamination on shared devices
+    await db.delete('sync_meta');
+    await db.delete('chores');
+    await db.delete('invitations');
+    await db.delete('family_members');
+    await db.delete('families');
+    await db.delete('users');
   }
 
   /// Returns the current user only if tokens exist (actually logged in).
