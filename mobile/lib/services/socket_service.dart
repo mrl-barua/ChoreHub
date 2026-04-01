@@ -64,11 +64,13 @@ class SocketService {
     });
   }
 
-  void sendMessage({required String id, required String familyId, required String text}) {
+  void sendMessage({required String id, required String familyId, required String text, String? choreId, String? mentions}) {
     _socket?.emit('send_message', {
       'id': id,
       'familyId': familyId,
       'text': text,
+      if (choreId != null) 'choreId': choreId,
+      if (mentions != null) 'mentions': mentions,
     });
   }
 

@@ -60,36 +60,47 @@ io.on('connection', async (socket) => {
   }
 
   // Handle sending messages
-  socket.on('send_message', async (data: { id: string; familyId: string; text: string }) => {
+  socket.on('send_message', async (data: { id: string; familyId: string; text: string; choreId?: string; mentions?: string }) => {
     try {
-      // Verify membership
       const member = await prisma.familyMember.findUnique({
         where: { familyId_userId: { familyId: data.familyId, userId } },
       });
       if (!member) return;
 
-      // Get sender info
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { displayName: true, username: true },
       });
 
-      // Save to database
       const message = await prisma.message.create({
         data: {
           id: data.id,
           familyId: data.familyId,
           userId,
           text: data.text,
+          choreId: data.choreId || null,
+          mentions: data.mentions || null,
         },
       });
 
-      // Broadcast to all family members (including sender for confirmation)
+      // If chore attached, fetch chore details for the broadcast
+      let choreData = null;
+      if (message.choreId) {
+        const chore = await prisma.chore.findUnique({
+          where: { id: message.choreId },
+          select: { id: true, title: true, status: true, category: true, assignedTo: true },
+        });
+        choreData = chore;
+      }
+
       io.to(`family:${data.familyId}`).emit('new_message', {
         id: message.id,
         familyId: message.familyId,
         userId: message.userId,
         text: message.text,
+        choreId: message.choreId,
+        mentions: message.mentions,
+        chore: choreData,
         createdAt: message.createdAt.toISOString(),
         userName: user?.displayName || 'Unknown',
       });

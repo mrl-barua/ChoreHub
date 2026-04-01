@@ -102,6 +102,8 @@ const String createMessagesTable = '''
     family_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
     text TEXT NOT NULL,
+    chore_id TEXT,
+    mentions TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     sync_status TEXT NOT NULL DEFAULT 'synced'
   )
@@ -110,6 +112,12 @@ const String createMessagesTable = '''
 // Migration from v4 to v5: add messages table
 const List<String> migrationV5 = [
   createMessagesTable,
+];
+
+// Migration from v5 to v6: add chore_id and mentions to messages
+const List<String> migrationV6 = [
+  "ALTER TABLE messages ADD COLUMN chore_id TEXT",
+  "ALTER TABLE messages ADD COLUMN mentions TEXT",
 ];
 
 const String createSyncMetaTable = '''

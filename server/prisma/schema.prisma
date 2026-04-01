@@ -95,6 +95,8 @@ model Message {
   familyId  String   @map("family_id")
   userId    String   @map("user_id")
   text      String
+  choreId   String?  @map("chore_id")
+  mentions  String?
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("messages")

@@ -42,10 +42,20 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<v
       select: { id: true, displayName: true, username: true },
     });
 
+    // Get chore info for messages with attachments
+    const choreIds = messages.map((m) => m.choreId).filter((id): id is string => id !== null);
+    const chores = choreIds.length > 0
+      ? await prisma.chore.findMany({
+          where: { id: { in: choreIds } },
+          select: { id: true, title: true, status: true, category: true, assignedTo: true },
+        })
+      : [];
+
     const result = messages.map((m) => ({
       ...m,
       createdAt: m.createdAt.toISOString(),
       userName: users.find((u) => u.id === m.userId)?.displayName || 'Unknown',
+      chore: m.choreId ? chores.find((c) => c.id === m.choreId) || null : null,
     }));
 
     // Return in chronological order (oldest first)

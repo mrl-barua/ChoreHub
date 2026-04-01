@@ -148,13 +148,14 @@ class MessageNotifier extends Notifier<MessageState> {
     );
   }
 
-  Future<void> sendMessage(String text) async {
+  Future<void> sendMessage(String text, {String? choreId, List<String>? mentionUserIds}) async {
     final user = ref.read(authProvider).user;
     final family = ref.read(familyProvider).currentFamily;
     if (user == null || family == null || text.trim().isEmpty) return;
 
     final id = const Uuid().v4();
     final now = DateTime.now().toIso8601String();
+    final mentionsStr = mentionUserIds != null && mentionUserIds.isNotEmpty ? mentionUserIds.join(',') : null;
 
     final message = Message(
       id: id,
@@ -164,12 +165,12 @@ class MessageNotifier extends Notifier<MessageState> {
       createdAt: now,
       syncStatus: 'pending',
       userName: user.displayName,
+      choreId: choreId,
+      mentions: mentionsStr,
     );
 
-    // Save locally immediately
     await _repo.insertMessage(message);
 
-    // Add to state immediately for instant UI feedback
     state = MessageState(
       messages: [...state.messages, message],
       typingUserIds: state.typingUserIds,
@@ -177,7 +178,7 @@ class MessageNotifier extends Notifier<MessageState> {
     );
 
     // Send via socket
-    _socket.sendMessage(id: id, familyId: family.id, text: text.trim());
+    _socket.sendMessage(id: id, familyId: family.id, text: text.trim(), choreId: choreId, mentions: mentionsStr);
 
     // Stop typing indicator
     _socket.sendStopTyping(family.id);
