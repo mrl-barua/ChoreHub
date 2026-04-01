@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/connectivity_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -159,17 +160,18 @@ class ProfileScreen extends ConsumerWidget {
               onPressed: () async {
                 final confirm = await showDialog<bool>(
                   context: context,
-                  builder: (_) => AlertDialog(
+                  builder: (dialogContext) => AlertDialog(
                     title: const Text('Logout'),
                     content: const Text('Are you sure you want to logout?'),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                      TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Logout')),
+                      TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Logout')),
                     ],
                   ),
                 );
                 if (confirm == true) {
-                  ref.read(authProvider.notifier).logout();
+                  await ref.read(authProvider.notifier).logout();
+                  if (context.mounted) context.go('/login');
                 }
               },
               icon: const Icon(Icons.logout_rounded),

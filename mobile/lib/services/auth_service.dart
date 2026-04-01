@@ -51,7 +51,13 @@ class AuthService {
     await db.delete('sync_meta', where: 'key = ?', whereArgs: ['current_user_id']);
   }
 
+  /// Returns the current user only if tokens exist (actually logged in).
+  /// Returns null if no tokens found (never logged in or logged out).
   Future<User?> getCurrentUser() async {
+    // Only consider the user logged in if we have stored tokens
+    final hasTokens = await _apiClient.hasTokens();
+    if (!hasTokens) return null;
+
     final db = await _db.database;
     final meta = await db.query('sync_meta', where: 'key = ?', whereArgs: ['current_user_id']);
     if (meta.isEmpty) return null;

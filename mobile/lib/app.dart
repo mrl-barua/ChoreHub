@@ -54,13 +54,30 @@ CustomTransitionPage<void> _fadeScalePage(Widget child, GoRouterState state) {
   );
 }
 
+/// A ChangeNotifier that listens to Riverpod auth state changes
+/// so GoRouter can use refreshListenable instead of being recreated.
+class AuthChangeNotifier extends ChangeNotifier {
+  AuthChangeNotifier(Ref ref) {
+    ref.listen(authProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+}
+
+final _authChangeNotifierProvider = Provider<AuthChangeNotifier>((ref) {
+  return AuthChangeNotifier(ref);
+});
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final authNotifier = ref.watch(_authChangeNotifierProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/dashboard',
+    refreshListenable: authNotifier,
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
+
       if (authState.isLoading) return null;
 
       final isAuth = authState.isAuthenticated;

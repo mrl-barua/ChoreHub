@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
@@ -10,14 +11,6 @@ class AuthState {
   AuthState({this.user, this.isLoading = false, this.error});
 
   bool get isAuthenticated => user != null;
-
-  AuthState copyWith({User? user, bool? isLoading, String? error, bool clearUser = false}) {
-    return AuthState(
-      user: clearUser ? null : (user ?? this.user),
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-    );
-  }
 }
 
 class AuthNotifier extends Notifier<AuthState> {
@@ -39,12 +32,14 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> login({required String email, required String password}) async {
-    state = state.copyWith(isLoading: true, error: null);
+    // Clear any previous user first, then show loading
+    state = AuthState(isLoading: true);
     try {
       final user = await _authService.login(email: email, password: password);
       state = AuthState(user: user);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: _extractError(e));
+      // No user on error — must not keep a stale user in state
+      state = AuthState(error: _extractError(e));
     }
   }
 
@@ -54,7 +49,7 @@ class AuthNotifier extends Notifier<AuthState> {
     required String email,
     required String password,
   }) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = AuthState(isLoading: true);
     try {
       final user = await _authService.register(
         username: username,
@@ -64,20 +59,29 @@ class AuthNotifier extends Notifier<AuthState> {
       );
       state = AuthState(user: user);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: _extractError(e));
+      state = AuthState(error: _extractError(e));
     }
   }
 
   Future<void> logout() async {
     await _authService.logout();
+    // Force a clean unauthenticated state
     state = AuthState();
   }
 
   String _extractError(dynamic e) {
-    if (e is Exception) {
-      final str = e.toString();
-      if (str.contains('DioException')) {
-        return 'Network error. Please check your connection.';
+    if (e is DioException) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        return 'Cannot connect to server. Check your internet connection.';
+      }
+      final statusCode = e.response?.statusCode;
+      if (statusCode == 401) {
+        return 'Invalid email or password.';
+      }
+      if (statusCode == 409) {
+        return 'Email or username already taken.';
       }
     }
     return 'Something went wrong. Please try again.';

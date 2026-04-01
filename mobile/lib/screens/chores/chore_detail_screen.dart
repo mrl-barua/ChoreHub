@@ -74,13 +74,13 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
             onPressed: () async {
               final confirm = await showDialog<bool>(
                 context: context,
-                builder: (_) => AlertDialog(
+                builder: (dialogContext) => AlertDialog(
                   title: const Text('Delete Chore'),
                   content: const Text('This action cannot be undone.'),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                    TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
                     TextButton(
-                      onPressed: () => Navigator.pop(context, true),
+                      onPressed: () => Navigator.pop(dialogContext, true),
                       child: Text('Delete', style: TextStyle(color: AppTheme.accentRed)),
                     ),
                   ],
