@@ -20,10 +20,17 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         for (final sql in allCreateStatements) {
           await db.execute(sql);
+        }
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          for (final sql in migrationV2) {
+            await db.execute(sql);
+          }
         }
       },
     );

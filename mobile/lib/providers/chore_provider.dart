@@ -6,18 +6,33 @@ import '../services/sync_service.dart';
 import 'auth_provider.dart';
 import 'family_provider.dart';
 
+enum ChoreSort { newest, dueDate, priority }
+
 class ChoreState {
   final List<Chore> chores;
   final String filter;
+  final ChoreSort sort;
+  final String searchQuery;
   final Map<String, int> stats;
   final bool isLoading;
 
   ChoreState({
     this.chores = const [],
     this.filter = 'all',
+    this.sort = ChoreSort.newest,
+    this.searchQuery = '',
     this.stats = const {'total': 0, 'done': 0, 'pending': 0},
     this.isLoading = false,
   });
+
+  List<Chore> get filteredChores {
+    var list = chores;
+    if (searchQuery.isNotEmpty) {
+      final q = searchQuery.toLowerCase();
+      list = list.where((c) => c.title.toLowerCase().contains(q) || c.category.toLowerCase().contains(q)).toList();
+    }
+    return list;
+  }
 }
 
 class ChoreNotifier extends Notifier<ChoreState> {
@@ -41,7 +56,15 @@ class ChoreNotifier extends Notifier<ChoreState> {
     final chores = await _repo.getChoresByFamily(family.id, statusFilter: filterValue);
     final stats = await _repo.getStats(family.id);
 
-    state = ChoreState(chores: chores, filter: state.filter, stats: stats);
+    final sorted = _sortChores(chores, state.sort);
+
+    state = ChoreState(
+      chores: sorted,
+      filter: state.filter,
+      sort: state.sort,
+      searchQuery: state.searchQuery,
+      stats: stats,
+    );
   }
 
   Future<void> setFilter(String filter) async {
@@ -51,8 +74,37 @@ class ChoreNotifier extends Notifier<ChoreState> {
     final filterValue = filter == 'all' ? null : filter;
     final chores = await _repo.getChoresByFamily(family.id, statusFilter: filterValue);
     final stats = await _repo.getStats(family.id);
+    final sorted = _sortChores(chores, state.sort);
 
-    state = ChoreState(chores: chores, filter: filter, stats: stats);
+    state = ChoreState(chores: sorted, filter: filter, sort: state.sort, searchQuery: state.searchQuery, stats: stats);
+  }
+
+  void setSort(ChoreSort sort) {
+    final sorted = _sortChores(state.chores, sort);
+    state = ChoreState(chores: sorted, filter: state.filter, sort: sort, searchQuery: state.searchQuery, stats: state.stats);
+  }
+
+  void setSearchQuery(String query) {
+    state = ChoreState(chores: state.chores, filter: state.filter, sort: state.sort, searchQuery: query, stats: state.stats);
+  }
+
+  List<Chore> _sortChores(List<Chore> chores, ChoreSort sort) {
+    final list = List<Chore>.from(chores);
+    switch (sort) {
+      case ChoreSort.newest:
+        list.sort((a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? ''));
+      case ChoreSort.dueDate:
+        list.sort((a, b) {
+          if (a.dueDate == null && b.dueDate == null) return 0;
+          if (a.dueDate == null) return 1;
+          if (b.dueDate == null) return -1;
+          return a.dueDate!.compareTo(b.dueDate!);
+        });
+      case ChoreSort.priority:
+        const order = {'high': 0, 'medium': 1, 'low': 2};
+        list.sort((a, b) => (order[a.priority] ?? 1).compareTo(order[b.priority] ?? 1));
+    }
+    return list;
   }
 
   Future<void> createChore({
@@ -61,6 +113,9 @@ class ChoreNotifier extends Notifier<ChoreState> {
     String? timeSlot,
     String? assignedTo,
     String? dueDate,
+    String priority = 'medium',
+    String? description,
+    String? recurrence,
   }) async {
     final user = ref.read(authProvider).user;
     final family = ref.read(familyProvider).currentFamily;
@@ -75,6 +130,9 @@ class ChoreNotifier extends Notifier<ChoreState> {
       assignedTo: assignedTo,
       dueDate: dueDate,
       createdBy: user.id,
+      priority: priority,
+      description: description,
+      recurrence: recurrence,
     );
 
     await _repo.insertChore(chore);

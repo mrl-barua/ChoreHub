@@ -23,17 +23,28 @@ class ShellScreen extends ConsumerWidget {
     return Scaffold(
       body: Column(
         children: [
-          if (!isOnline)
-            Container(
-              width: double.infinity,
-              color: Colors.orange.shade100,
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: const Text(
-                'You are offline. Changes will sync when connected.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.black87),
-              ),
-            ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+            child: !isOnline
+                ? Container(
+                    width: double.infinity,
+                    color: Colors.orange.shade700,
+                    padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 4, bottom: 6, left: 16, right: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.wifi_off_rounded, size: 14, color: Colors.white),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Offline mode - changes will sync later',
+                          style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
           Expanded(child: child),
         ],
       ),
@@ -52,10 +63,10 @@ class ShellScreen extends ConsumerWidget {
           }
         },
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
-          NavigationDestination(icon: Icon(Icons.task_outlined), selectedIcon: Icon(Icons.task), label: 'Chores'),
-          NavigationDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people), label: 'Family'),
-          NavigationDestination(icon: Icon(Icons.person_outlined), selectedIcon: Icon(Icons.person), label: 'Profile'),
+          NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard_rounded), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.task_outlined), selectedIcon: Icon(Icons.task_rounded), label: 'Chores'),
+          NavigationDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people_rounded), label: 'Family'),
+          NavigationDestination(icon: Icon(Icons.person_outlined), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
         ],
       ),
     );

@@ -11,6 +11,9 @@ class Chore {
   final String? createdAt;
   final String? updatedAt;
   final String syncStatus;
+  final String priority; // 'low', 'medium', 'high'
+  final String? description;
+  final String? recurrence; // null, 'daily', 'weekly', 'monthly'
 
   Chore({
     required this.id,
@@ -25,6 +28,9 @@ class Chore {
     this.createdAt,
     this.updatedAt,
     this.syncStatus = 'pending',
+    this.priority = 'medium',
+    this.description,
+    this.recurrence,
   });
 
   bool get isDone => status == 'done';
@@ -38,6 +44,9 @@ class Chore {
     String? dueDate,
     String? syncStatus,
     String? updatedAt,
+    String? priority,
+    String? description,
+    String? recurrence,
   }) {
     return Chore(
       id: id,
@@ -52,6 +61,9 @@ class Chore {
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
+      priority: priority ?? this.priority,
+      description: description ?? this.description,
+      recurrence: recurrence ?? this.recurrence,
     );
   }
 
@@ -69,6 +81,9 @@ class Chore {
       createdAt: json['createdAt']?.toString() ?? json['created_at'] as String?,
       updatedAt: json['updatedAt']?.toString() ?? json['updated_at'] as String?,
       syncStatus: json['sync_status'] ?? 'synced',
+      priority: json['priority'] as String? ?? 'medium',
+      description: json['description'] as String?,
+      recurrence: json['recurrence'] as String?,
     );
   }
 
@@ -81,6 +96,9 @@ class Chore {
         'assignedTo': assignedTo,
         'status': status,
         'dueDate': dueDate,
+        'priority': priority,
+        'description': description,
+        'recurrence': recurrence,
       };
 
   Map<String, dynamic> toMap() => {
@@ -96,6 +114,9 @@ class Chore {
         'created_at': createdAt ?? DateTime.now().toIso8601String(),
         'updated_at': updatedAt ?? DateTime.now().toIso8601String(),
         'sync_status': syncStatus,
+        'priority': priority,
+        'description': description,
+        'recurrence': recurrence,
       };
 
   factory Chore.fromMap(Map<String, dynamic> map) {
@@ -112,6 +133,9 @@ class Chore {
       createdAt: map['created_at'] as String?,
       updatedAt: map['updated_at'] as String?,
       syncStatus: map['sync_status'] as String? ?? 'pending',
+      priority: map['priority'] as String? ?? 'medium',
+      description: map['description'] as String?,
+      recurrence: map['recurrence'] as String?,
     );
   }
 }

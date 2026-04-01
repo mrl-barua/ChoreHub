@@ -59,9 +59,19 @@ const String createChoresTable = '''
     created_by TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    sync_status TEXT NOT NULL DEFAULT 'pending'
+    sync_status TEXT NOT NULL DEFAULT 'pending',
+    priority TEXT NOT NULL DEFAULT 'medium',
+    description TEXT,
+    recurrence TEXT
   )
 ''';
+
+// Migration from v1 to v2: add new chore columns
+const List<String> migrationV2 = [
+  "ALTER TABLE chores ADD COLUMN priority TEXT NOT NULL DEFAULT 'medium'",
+  "ALTER TABLE chores ADD COLUMN description TEXT",
+  "ALTER TABLE chores ADD COLUMN recurrence TEXT",
+];
 
 const String createSyncMetaTable = '''
   CREATE TABLE IF NOT EXISTS sync_meta (

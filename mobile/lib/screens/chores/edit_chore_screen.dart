@@ -2,31 +2,61 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
+import '../../models/chore.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
+import '../../repositories/chore_repository.dart';
 
 const _categories = ['cleaning', 'cooking', 'dishwashing', 'laundry', 'gardening', 'shopping', 'other'];
 const _timeSlots = ['morning', 'lunch', 'evening'];
 const _priorities = ['low', 'medium', 'high'];
 const _recurrences = ['daily', 'weekly', 'monthly'];
 
-class CreateChoreScreen extends ConsumerStatefulWidget {
-  const CreateChoreScreen({super.key});
+class EditChoreScreen extends ConsumerStatefulWidget {
+  final String choreId;
+  const EditChoreScreen({super.key, required this.choreId});
 
   @override
-  ConsumerState<CreateChoreScreen> createState() => _CreateChoreScreenState();
+  ConsumerState<EditChoreScreen> createState() => _EditChoreScreenState();
 }
 
-class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
+class _EditChoreScreenState extends ConsumerState<EditChoreScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  String _category = 'cleaning';
+  Chore? _chore;
+  bool _isLoading = true;
+
+  late String _category;
   String? _timeSlot;
   String? _assignedTo;
   DateTime? _dueDate;
   String _priority = 'medium';
   String? _recurrence;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChore();
+  }
+
+  Future<void> _loadChore() async {
+    final chore = await ChoreRepository().getChoreById(widget.choreId);
+    if (chore != null) {
+      _titleController.text = chore.title;
+      _descriptionController.text = chore.description ?? '';
+      _category = chore.category;
+      _timeSlot = chore.timeSlot;
+      _assignedTo = chore.assignedTo;
+      _dueDate = chore.dueDate != null ? DateTime.tryParse(chore.dueDate!) : null;
+      _priority = chore.priority;
+      _recurrence = chore.recurrence;
+    }
+    setState(() {
+      _chore = chore;
+      _isLoading = false;
+    });
+  }
 
   @override
   void dispose() {
@@ -36,19 +66,22 @@ class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate() || _chore == null) return;
 
-    await ref.read(choreProvider.notifier).createChore(
-          title: _titleController.text.trim(),
-          category: _category,
-          timeSlot: _timeSlot,
-          assignedTo: _assignedTo,
-          dueDate: _dueDate?.toIso8601String().substring(0, 10),
-          priority: _priority,
-          description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-          recurrence: _recurrence,
-        );
+    final updated = _chore!.copyWith(
+      title: _titleController.text.trim(),
+      category: _category,
+      timeSlot: _timeSlot,
+      assignedTo: _assignedTo,
+      dueDate: _dueDate?.toIso8601String().substring(0, 10),
+      priority: _priority,
+      description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+      recurrence: _recurrence,
+      updatedAt: DateTime.now().toIso8601String(),
+      syncStatus: 'pending',
+    );
 
+    await ref.read(choreProvider.notifier).updateChore(updated);
     if (mounted) context.pop();
   }
 
@@ -66,8 +99,15 @@ class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
   Widget build(BuildContext context) {
     final family = ref.watch(familyProvider);
 
+    if (_isLoading) {
+      return Scaffold(appBar: AppBar(title: const Text('Edit Chore')), body: const Center(child: CircularProgressIndicator()));
+    }
+    if (_chore == null) {
+      return Scaffold(appBar: AppBar(title: const Text('Edit Chore')), body: const Center(child: Text('Chore not found')));
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('New Chore')),
+      appBar: AppBar(title: const Text('Edit Chore')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -77,21 +117,17 @@ class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
             children: [
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(labelText: 'What needs to be done?', prefixIcon: Icon(Icons.edit_rounded)),
+                decoration: const InputDecoration(labelText: 'Title', prefixIcon: Icon(Icons.edit_rounded)),
                 validator: (v) => v == null || v.isEmpty ? 'Enter a title' : null,
-                textCapitalization: TextCapitalization.sentences,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Notes (optional)', prefixIcon: Icon(Icons.notes_rounded)),
+                decoration: const InputDecoration(labelText: 'Notes', prefixIcon: Icon(Icons.notes_rounded)),
                 maxLines: 3,
                 minLines: 1,
-                textCapitalization: TextCapitalization.sentences,
               ),
               const SizedBox(height: 20),
-
-              // Category chips
               Text('Category', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
               const SizedBox(height: 8),
               Wrap(
@@ -103,20 +139,12 @@ class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
                   return ChoiceChip(
                     label: Text(cat[0].toUpperCase() + cat.substring(1)),
                     selected: isSelected,
-                    onSelected: (_) => setState(() {
-                      _category = cat;
-                      if (cat != 'cooking') _timeSlot = null;
-                    }),
+                    onSelected: (_) => setState(() => _category = cat),
                     selectedColor: color.withValues(alpha: 0.2),
-                    avatar: isSelected ? Icon(Icons.check_rounded, size: 16, color: color) : null,
-                    labelStyle: TextStyle(
-                      color: isSelected ? color : Colors.grey.shade600,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    ),
+                    labelStyle: TextStyle(color: isSelected ? color : Colors.grey.shade600, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500),
                   );
                 }).toList(),
               ),
-
               if (_category == 'cooking') ...[
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
@@ -126,10 +154,7 @@ class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
                   onChanged: (v) => setState(() => _timeSlot = v),
                 ),
               ],
-
               const SizedBox(height: 20),
-
-              // Priority selector
               Text('Priority', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
               const SizedBox(height: 8),
               Row(
@@ -151,16 +176,9 @@ class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
                           ),
                           child: Column(
                             children: [
-                              Icon(
-                                p == 'high' ? Icons.keyboard_double_arrow_up_rounded : p == 'low' ? Icons.keyboard_double_arrow_down_rounded : Icons.remove_rounded,
-                                color: isSelected ? color : Colors.grey,
-                                size: 20,
-                              ),
+                              Icon(p == 'high' ? Icons.keyboard_double_arrow_up_rounded : p == 'low' ? Icons.keyboard_double_arrow_down_rounded : Icons.remove_rounded, color: isSelected ? color : Colors.grey, size: 20),
                               const SizedBox(height: 4),
-                              Text(
-                                p[0].toUpperCase() + p.substring(1),
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isSelected ? color : Colors.grey),
-                              ),
+                              Text(p[0].toUpperCase() + p.substring(1), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isSelected ? color : Colors.grey)),
                             ],
                           ),
                         ),
@@ -169,76 +187,47 @@ class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
                   );
                 }).toList(),
               ),
-
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _assignedTo,
                 decoration: const InputDecoration(labelText: 'Assign To', prefixIcon: Icon(Icons.person_outline_rounded)),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Unassigned')),
-                  ...family.members.map((m) => DropdownMenuItem(
-                        value: m.userId,
-                        child: Text(m.user?.displayName ?? m.userId),
-                      )),
+                  ...family.members.map((m) => DropdownMenuItem(value: m.userId, child: Text(m.user?.displayName ?? m.userId))),
                 ],
                 onChanged: (v) => setState(() => _assignedTo = v),
               ),
-
               const SizedBox(height: 16),
-
-              // Due date
               GestureDetector(
                 onTap: _pickDate,
                 child: InputDecorator(
                   decoration: InputDecoration(
                     labelText: 'Due Date',
                     prefixIcon: const Icon(Icons.calendar_today_rounded),
-                    suffixIcon: _dueDate != null
-                        ? IconButton(icon: const Icon(Icons.clear_rounded), onPressed: () => setState(() => _dueDate = null))
-                        : null,
+                    suffixIcon: _dueDate != null ? IconButton(icon: const Icon(Icons.clear_rounded), onPressed: () => setState(() => _dueDate = null)) : null,
                   ),
                   child: Text(
-                    _dueDate != null
-                        ? '${_dueDate!.year}-${_dueDate!.month.toString().padLeft(2, '0')}-${_dueDate!.day.toString().padLeft(2, '0')}'
-                        : 'No due date',
+                    _dueDate != null ? '${_dueDate!.year}-${_dueDate!.month.toString().padLeft(2, '0')}-${_dueDate!.day.toString().padLeft(2, '0')}' : 'No due date',
                     style: TextStyle(color: _dueDate != null ? null : Colors.grey),
                   ),
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // Recurrence
               Text('Repeat', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 children: [
-                  ChoiceChip(
-                    label: const Text('None'),
-                    selected: _recurrence == null,
-                    onSelected: (_) => setState(() => _recurrence = null),
-                  ),
+                  ChoiceChip(label: const Text('None'), selected: _recurrence == null, onSelected: (_) => setState(() => _recurrence = null)),
                   ..._recurrences.map((r) => ChoiceChip(
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.repeat_rounded, size: 14),
-                            const SizedBox(width: 4),
-                            Text(r[0].toUpperCase() + r.substring(1)),
-                          ],
-                        ),
+                        label: Text(r[0].toUpperCase() + r.substring(1)),
                         selected: _recurrence == r,
                         onSelected: (_) => setState(() => _recurrence = r),
                       )),
                 ],
               ),
-
               const SizedBox(height: 32),
-              FilledButton(
-                onPressed: _submit,
-                child: const Text('Create Chore'),
-              ),
+              FilledButton(onPressed: _submit, child: const Text('Save Changes')),
             ],
           ),
         ),
