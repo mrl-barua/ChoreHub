@@ -63,9 +63,10 @@ model Chore {
   title      String
   category   String
   timeSlot   String?   @map("time_slot")
-  assignedTo String?   @map("assigned_to")
-  status     String    @default("pending")
-  dueDate    DateTime? @map("due_date")
+  assignedTo       String?   @map("assigned_to")
+  status           String    @default("pending")
+  assignmentStatus String    @default("unassigned") @map("assignment_status")
+  dueDate          DateTime? @map("due_date")
   createdBy  String    @map("created_by")
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")

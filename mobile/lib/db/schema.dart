@@ -62,7 +62,8 @@ const String createChoresTable = '''
     sync_status TEXT NOT NULL DEFAULT 'pending',
     priority TEXT NOT NULL DEFAULT 'medium',
     description TEXT,
-    recurrence TEXT
+    recurrence TEXT,
+    assignment_status TEXT NOT NULL DEFAULT 'unassigned'
   )
 ''';
 
@@ -71,6 +72,11 @@ const List<String> migrationV2 = [
   "ALTER TABLE chores ADD COLUMN priority TEXT NOT NULL DEFAULT 'medium'",
   "ALTER TABLE chores ADD COLUMN description TEXT",
   "ALTER TABLE chores ADD COLUMN recurrence TEXT",
+];
+
+// Migration from v2 to v3: add assignment_status
+const List<String> migrationV3 = [
+  "ALTER TABLE chores ADD COLUMN assignment_status TEXT NOT NULL DEFAULT 'unassigned'",
 ];
 
 const String createSyncMetaTable = '''

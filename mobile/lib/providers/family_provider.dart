@@ -5,6 +5,7 @@ import '../models/family_member.dart';
 import '../repositories/family_repository.dart';
 import '../services/api_client.dart';
 import '../services/connectivity_service.dart';
+import '../services/sync_service.dart';
 import 'auth_provider.dart';
 
 class FamilyState {
@@ -85,6 +86,15 @@ class FamilyNotifier extends Notifier<FamilyState> {
       } catch (_) {}
     }
 
+    await loadFamilies();
+  }
+
+  Future<void> refreshWithSync() async {
+    if (ConnectivityService().isOnline) {
+      try {
+        await SyncService().sync();
+      } catch (_) {}
+    }
     await loadFamilies();
   }
 

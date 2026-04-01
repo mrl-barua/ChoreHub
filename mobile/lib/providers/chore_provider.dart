@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/chore.dart';
 import '../repositories/chore_repository.dart';
+import '../services/api_client.dart';
+import '../services/connectivity_service.dart';
 import '../services/sync_service.dart';
 import 'auth_provider.dart';
 import 'family_provider.dart';
@@ -128,6 +130,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
       category: category,
       timeSlot: timeSlot,
       assignedTo: assignedTo,
+      assignmentStatus: assignedTo != null ? 'pending_acceptance' : 'unassigned',
       dueDate: dueDate,
       createdBy: user.id,
       priority: priority,
@@ -164,6 +167,42 @@ class ChoreNotifier extends Notifier<ChoreState> {
     await _repo.deleteChore(id);
     await loadChores();
     _syncService.sync();
+  }
+
+  Future<bool> respondToAssignment(String choreId, String assignmentStatus) async {
+    if (ConnectivityService().isOnline) {
+      try {
+        final apiClient = ApiClient();
+        await apiClient.dio.patch('/chores/$choreId/assignment', data: {
+          'assignmentStatus': assignmentStatus,
+        });
+        final chore = await _repo.getChoreById(choreId);
+        if (chore != null) {
+          final updated = chore.copyWith(
+            assignmentStatus: assignmentStatus,
+            updatedAt: DateTime.now().toIso8601String(),
+            syncStatus: 'synced',
+          );
+          await _repo.updateChore(updated);
+        }
+        await loadChores();
+        return true;
+      } catch (_) {
+        return false;
+      }
+    } else {
+      final chore = await _repo.getChoreById(choreId);
+      if (chore != null) {
+        final updated = chore.copyWith(
+          assignmentStatus: assignmentStatus,
+          updatedAt: DateTime.now().toIso8601String(),
+          syncStatus: 'pending',
+        );
+        await _repo.updateChore(updated);
+      }
+      await loadChores();
+      return true;
+    }
   }
 
   Future<void> refresh() async {

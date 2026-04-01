@@ -14,6 +14,7 @@ class Chore {
   final String priority; // 'low', 'medium', 'high'
   final String? description;
   final String? recurrence; // null, 'daily', 'weekly', 'monthly'
+  final String assignmentStatus; // 'unassigned', 'pending_acceptance', 'accepted', 'declined'
 
   Chore({
     required this.id,
@@ -31,9 +32,13 @@ class Chore {
     this.priority = 'medium',
     this.description,
     this.recurrence,
+    this.assignmentStatus = 'unassigned',
   });
 
   bool get isDone => status == 'done';
+  bool get isPendingAcceptance => assignmentStatus == 'pending_acceptance';
+  bool get isAssignmentAccepted => assignmentStatus == 'accepted';
+  bool get isAssignmentDeclined => assignmentStatus == 'declined';
 
   Chore copyWith({
     String? title,
@@ -47,6 +52,7 @@ class Chore {
     String? priority,
     String? description,
     String? recurrence,
+    String? assignmentStatus,
   }) {
     return Chore(
       id: id,
@@ -64,6 +70,7 @@ class Chore {
       priority: priority ?? this.priority,
       description: description ?? this.description,
       recurrence: recurrence ?? this.recurrence,
+      assignmentStatus: assignmentStatus ?? this.assignmentStatus,
     );
   }
 
@@ -84,6 +91,7 @@ class Chore {
       priority: json['priority'] as String? ?? 'medium',
       description: json['description'] as String?,
       recurrence: json['recurrence'] as String?,
+      assignmentStatus: json['assignmentStatus'] ?? json['assignment_status'] as String? ?? 'unassigned',
     );
   }
 
@@ -99,6 +107,7 @@ class Chore {
         'priority': priority,
         'description': description,
         'recurrence': recurrence,
+        'assignmentStatus': assignmentStatus,
       };
 
   Map<String, dynamic> toMap() => {
@@ -117,6 +126,7 @@ class Chore {
         'priority': priority,
         'description': description,
         'recurrence': recurrence,
+        'assignment_status': assignmentStatus,
       };
 
   factory Chore.fromMap(Map<String, dynamic> map) {
@@ -136,6 +146,7 @@ class Chore {
       priority: map['priority'] as String? ?? 'medium',
       description: map['description'] as String?,
       recurrence: map['recurrence'] as String?,
+      assignmentStatus: map['assignment_status'] as String? ?? 'unassigned',
     );
   }
 }

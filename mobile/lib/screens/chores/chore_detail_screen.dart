@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
 import '../../repositories/chore_repository.dart';
@@ -44,9 +45,36 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
     }
   }
 
+  Color _assignmentStatusColor(String status) {
+    switch (status) {
+      case 'pending_acceptance':
+        return Colors.orange;
+      case 'accepted':
+        return AppTheme.accentGreen;
+      case 'declined':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _assignmentStatusLabel(String status) {
+    switch (status) {
+      case 'pending_acceptance':
+        return 'Awaiting Acceptance';
+      case 'accepted':
+        return 'Accepted';
+      case 'declined':
+        return 'Declined';
+      default:
+        return '';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final family = ref.watch(familyProvider);
+    final currentUser = ref.watch(authProvider).user;
 
     if (_isLoading) {
       return Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator()));
@@ -58,6 +86,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
     final chore = _chore!;
     final assignee = family.members.where((m) => m.userId == chore.assignedTo).firstOrNull;
     final categoryColor = AppTheme.categoryColors[chore.category] ?? Colors.grey;
+    final isAssignee = currentUser != null && chore.assignedTo == currentUser.id;
 
     return Scaffold(
       appBar: AppBar(
@@ -117,7 +146,9 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                   children: [
                     Text(chore.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 6),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -130,7 +161,6 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: chore.isDone ? AppTheme.accentGreen : AppTheme.accentOrange),
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
@@ -142,6 +172,18 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _priorityColor),
                           ),
                         ),
+                        if (chore.assignedTo != null && chore.assignmentStatus != 'unassigned')
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _assignmentStatusColor(chore.assignmentStatus).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              _assignmentStatusLabel(chore.assignmentStatus),
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _assignmentStatusColor(chore.assignmentStatus)),
+                            ),
+                          ),
                       ],
                     ),
                   ],
@@ -161,6 +203,58 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                     Icon(Icons.notes_rounded, size: 20, color: Colors.grey.shade500),
                     const SizedBox(width: 12),
                     Expanded(child: Text(chore.description!, style: const TextStyle(fontSize: 15, height: 1.5))),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
+          // Assignment accept/decline card for the assignee
+          if (isAssignee && chore.isPendingAcceptance) ...[
+            const SizedBox(height: 20),
+            Card(
+              color: Colors.orange.withValues(alpha: 0.08),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.assignment_ind_rounded, color: Colors.orange, size: 22),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text('You have been assigned this chore',
+                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              await ref.read(choreProvider.notifier).respondToAssignment(chore.id, 'declined');
+                              await _loadChore();
+                            },
+                            style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                            child: const Text('Decline'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () async {
+                              await ref.read(choreProvider.notifier).respondToAssignment(chore.id, 'accepted');
+                              await _loadChore();
+                            },
+                            style: FilledButton.styleFrom(backgroundColor: AppTheme.accentGreen),
+                            child: const Text('Accept'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),

@@ -2,6 +2,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
+import '../services/sync_service.dart';
+import 'chore_provider.dart';
+import 'family_provider.dart';
+import 'invitation_provider.dart';
 
 class AuthState {
   final User? user;
@@ -25,7 +29,16 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> _loadCurrentUser() async {
     try {
       final user = await _authService.getCurrentUser();
-      state = AuthState(user: user);
+      if (user != null) {
+        state = AuthState(user: user);
+        // Sync to restore data from server (DB was cleared on logout)
+        try { await SyncService().sync(); } catch (_) {}
+        ref.invalidate(familyProvider);
+        ref.invalidate(choreProvider);
+        ref.invalidate(invitationProvider);
+      } else {
+        state = AuthState();
+      }
     } catch (_) {
       state = AuthState();
     }
@@ -37,6 +50,11 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final user = await _authService.login(email: email, password: password);
       state = AuthState(user: user);
+      // Sync from server to restore user's data, then rebuild providers
+      try { await SyncService().sync(); } catch (_) {}
+      ref.invalidate(familyProvider);
+      ref.invalidate(choreProvider);
+      ref.invalidate(invitationProvider);
     } catch (e) {
       // No user on error — must not keep a stale user in state
       state = AuthState(error: _extractError(e));
@@ -58,6 +76,9 @@ class AuthNotifier extends Notifier<AuthState> {
         password: password,
       );
       state = AuthState(user: user);
+      ref.invalidate(familyProvider);
+      ref.invalidate(choreProvider);
+      ref.invalidate(invitationProvider);
     } catch (e) {
       state = AuthState(error: _extractError(e));
     }
@@ -65,6 +86,10 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> logout() async {
     await _authService.logout();
+    // Force other providers to clear stale data
+    ref.invalidate(familyProvider);
+    ref.invalidate(choreProvider);
+    ref.invalidate(invitationProvider);
     // Force a clean unauthenticated state
     state = AuthState();
   }

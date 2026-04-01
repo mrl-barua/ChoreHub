@@ -29,6 +29,13 @@ class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
   String? _recurrence;
 
   @override
+  void initState() {
+    super.initState();
+    // Sync to get latest family members (e.g. newly joined User B)
+    Future.microtask(() => ref.read(familyProvider.notifier).refreshWithSync());
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();

@@ -34,6 +34,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response): Promise<
         category,
         timeSlot: timeSlot || null,
         assignedTo: assignedTo || null,
+        assignmentStatus: assignedTo ? 'pending_acceptance' : 'unassigned',
         status: status || 'pending',
         dueDate: dueDate ? new Date(dueDate) : null,
         createdBy: req.userId!,
@@ -88,6 +89,13 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response): Prom
     }
 
     const { title, category, timeSlot, assignedTo, status, dueDate } = req.body;
+
+    // If assignedTo changes, reset assignment status
+    let assignmentStatus: string | undefined;
+    if (assignedTo !== undefined) {
+      assignmentStatus = assignedTo ? 'pending_acceptance' : 'unassigned';
+    }
+
     const updated = await prisma.chore.update({
       where: { id },
       data: {
@@ -95,6 +103,7 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response): Prom
         ...(category !== undefined && { category }),
         ...(timeSlot !== undefined && { timeSlot }),
         ...(assignedTo !== undefined && { assignedTo }),
+        ...(assignmentStatus !== undefined && { assignmentStatus }),
         ...(status !== undefined && { status }),
         ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
       },
@@ -103,6 +112,45 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response): Prom
     res.json(updated);
   } catch (error) {
     console.error('Update chore error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Assignee accepts or declines a chore assignment
+router.patch('/:id/assignment', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = String(req.params.id);
+    const { assignmentStatus } = req.body;
+
+    if (!assignmentStatus || !['accepted', 'declined'].includes(assignmentStatus)) {
+      res.status(400).json({ error: 'assignmentStatus must be "accepted" or "declined"' });
+      return;
+    }
+
+    const chore = await prisma.chore.findUnique({ where: { id } });
+    if (!chore) {
+      res.status(404).json({ error: 'Chore not found' });
+      return;
+    }
+
+    if (chore.assignedTo !== req.userId) {
+      res.status(403).json({ error: 'Only the assigned user can respond to this assignment' });
+      return;
+    }
+
+    if (chore.assignmentStatus !== 'pending_acceptance') {
+      res.status(400).json({ error: 'Assignment has already been responded to' });
+      return;
+    }
+
+    const updated = await prisma.chore.update({
+      where: { id },
+      data: { assignmentStatus },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Update assignment error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

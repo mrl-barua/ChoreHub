@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../providers/chore_provider.dart';
 import '../../providers/invitation_provider.dart';
 import '../../providers/family_provider.dart';
 
@@ -53,15 +55,27 @@ class InvitationsScreen extends ConsumerWidget {
                                 children: [
                                   OutlinedButton(
                                     onPressed: () async {
-                                      await ref.read(invitationProvider.notifier).respondToInvitation(inv.id, 'declined');
+                                      final success = await ref.read(invitationProvider.notifier).respondToInvitation(inv.id, 'declined');
+                                      if (success) {
+                                        await ref.read(familyProvider.notifier).loadFamilies();
+                                      }
                                     },
                                     child: const Text('Decline'),
                                   ),
                                   const SizedBox(width: 12),
                                   FilledButton(
                                     onPressed: () async {
-                                      await ref.read(invitationProvider.notifier).respondToInvitation(inv.id, 'accepted');
-                                      ref.read(familyProvider.notifier).loadFamilies();
+                                      final success = await ref.read(invitationProvider.notifier).respondToInvitation(inv.id, 'accepted');
+                                      if (success) {
+                                        await ref.read(familyProvider.notifier).loadFamilies();
+                                        await ref.read(choreProvider.notifier).loadChores();
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('You joined the family!')),
+                                          );
+                                          context.go('/dashboard');
+                                        }
+                                      }
                                     },
                                     child: const Text('Accept'),
                                   ),

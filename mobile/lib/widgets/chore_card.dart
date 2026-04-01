@@ -176,7 +176,26 @@ class _ChoreCardState extends State<ChoreCard> with SingleTickerProviderStateMix
                             chore.recurrence![0].toUpperCase() + chore.recurrence!.substring(1),
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                           ),
+                          const SizedBox(width: 10),
                         ],
+                        if (chore.isPendingAcceptance)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text('Awaiting', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.orange)),
+                          )
+                        else if (chore.isAssignmentDeclined)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text('Declined', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.red)),
+                          ),
                       ],
                     ),
                   ],
