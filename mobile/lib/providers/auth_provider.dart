@@ -1,10 +1,8 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/socket_service.dart';
-import '../services/sync_service.dart';
 import 'chore_provider.dart';
 import 'family_provider.dart';
 import 'invitation_provider.dart';
@@ -34,8 +32,7 @@ class AuthNotifier extends Notifier<AuthState> {
       final user = await _authService.getCurrentUser();
       if (user != null) {
         state = AuthState(user: user);
-        // Sync to restore data from server (DB was cleared on logout)
-        try { await SyncService().sync(); } catch (e) { debugPrint('Sync after load: $e'); }
+        // Invalidate all providers so they fetch fresh from server
         ref.invalidate(familyProvider);
         ref.invalidate(choreProvider);
         ref.invalidate(invitationProvider);
@@ -43,26 +40,22 @@ class AuthNotifier extends Notifier<AuthState> {
       } else {
         state = AuthState();
       }
-    } catch (e) {
-      debugPrint('Load current user error: $e');
+    } catch (_) {
       state = AuthState();
     }
   }
 
   Future<void> login({required String email, required String password}) async {
-    // Clear any previous user first, then show loading
     state = AuthState(isLoading: true);
     try {
       final user = await _authService.login(email: email, password: password);
       state = AuthState(user: user);
-      // Sync from server to restore user's data, then rebuild providers
-      try { await SyncService().sync(); } catch (e) { debugPrint('Sync after login: $e'); }
+      // All providers will fetch from server when invalidated
       ref.invalidate(familyProvider);
       ref.invalidate(choreProvider);
       ref.invalidate(invitationProvider);
       ref.invalidate(messageProvider);
     } catch (e) {
-      // No user on error — must not keep a stale user in state
       state = AuthState(error: _extractError(e));
     }
   }
@@ -92,15 +85,12 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
-    // Disconnect socket before clearing auth state
     SocketService().disconnect();
     await _authService.logout();
-    // Force other providers to clear stale data
     ref.invalidate(familyProvider);
     ref.invalidate(choreProvider);
     ref.invalidate(invitationProvider);
     ref.invalidate(messageProvider);
-    // Force a clean unauthenticated state
     state = AuthState();
   }
 
@@ -112,12 +102,8 @@ class AuthNotifier extends Notifier<AuthState> {
         return 'Cannot connect to server. Check your internet connection.';
       }
       final statusCode = e.response?.statusCode;
-      if (statusCode == 401) {
-        return 'Invalid email or password.';
-      }
-      if (statusCode == 409) {
-        return 'Email or username already taken.';
-      }
+      if (statusCode == 401) return 'Invalid email or password.';
+      if (statusCode == 409) return 'Email or username already taken.';
     }
     return 'Something went wrong. Please try again.';
   }

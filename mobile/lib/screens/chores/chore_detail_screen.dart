@@ -5,7 +5,6 @@ import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
-import '../../repositories/chore_repository.dart';
 import '../../models/chore.dart';
 
 class ChoreDetailScreen extends ConsumerStatefulWidget {
@@ -27,11 +26,17 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
   }
 
   Future<void> _loadChore() async {
-    final chore = await ChoreRepository().getChoreById(widget.choreId);
-    setState(() {
-      _chore = chore;
-      _isLoading = false;
-    });
+    try {
+      // Find chore from provider state first, or it can be fetched from chores list
+      final chores = ref.read(choreProvider).chores;
+      final chore = chores.where((c) => c.id == widget.choreId).firstOrNull;
+      setState(() {
+        _chore = chore;
+        _isLoading = false;
+      });
+    } catch (_) {
+      setState(() => _isLoading = false);
+    }
   }
 
   Color get _priorityColor {

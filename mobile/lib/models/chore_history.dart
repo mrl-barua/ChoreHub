@@ -37,6 +37,8 @@ class ChoreHistory extends Equatable {
       action: json['action'] as String,
       createdAt: json['createdAt']?.toString() ?? json['created_at'] as String,
       syncStatus: json['sync_status'] ?? 'synced',
+      userName: json['userName'] ?? json['user_name'] as String?,
+      choreTitle: json['choreTitle'] ?? json['chore_title'] as String?,
     );
   }
 

@@ -1,14 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
 import '../models/family.dart';
 import '../models/family_member.dart';
-import '../repositories/chore_repository.dart';
-import '../repositories/family_repository.dart';
-import '../repositories/history_repository.dart';
+import '../models/user.dart';
 import '../services/api_client.dart';
-import '../services/connectivity_service.dart';
-import '../services/sync_service.dart';
 import 'auth_provider.dart';
 
 class FamilyState {
@@ -34,7 +29,6 @@ class FamilyState {
 }
 
 class FamilyNotifier extends Notifier<FamilyState> {
-  final FamilyRepository _repo = FamilyRepository();
   final ApiClient _apiClient = ApiClient();
 
   @override
@@ -50,24 +44,55 @@ class FamilyNotifier extends Notifier<FamilyState> {
       return;
     }
 
-    state = FamilyState(isLoading: true);
-    final families = await _repo.getFamiliesForUser(user.id);
-    final currentFamily = families.isNotEmpty ? families.first : null;
+    try {
+      // Fetch families from server
+      final response = await _apiClient.dio.get('/families');
+      final families = (response.data as List).map((f) => Family.fromJson(f)).toList();
+      final currentFamily = families.isNotEmpty ? families.first : null;
 
-    List<FamilyMember> members = [];
-    if (currentFamily != null) {
-      members = await _repo.getMembers(currentFamily.id);
+      List<FamilyMember> members = [];
+      if (currentFamily != null) {
+        members = await _loadMembersFromServer(currentFamily.id);
+      }
+
+      state = FamilyState(
+        families: families,
+        currentFamily: currentFamily,
+        members: members,
+      );
+    } catch (e) {
+      debugPrint('[Family] Load failed: $e');
+      state = FamilyState();
     }
+  }
 
-    state = FamilyState(
-      families: families,
-      currentFamily: currentFamily,
-      members: members,
-    );
+  Future<List<FamilyMember>> _loadMembersFromServer(String familyId) async {
+    try {
+      final response = await _apiClient.dio.get('/families/$familyId/members');
+      return (response.data as List).map((m) {
+        final member = FamilyMember.fromJson(m);
+        // Server returns user object nested
+        User? user;
+        if (m['user'] != null) {
+          user = User.fromJson(m['user']);
+        }
+        return FamilyMember(
+          id: member.id,
+          familyId: member.familyId,
+          userId: member.userId,
+          role: member.role,
+          joinedAt: member.joinedAt,
+          user: user,
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('[Family] Load members failed: $e');
+      return [];
+    }
   }
 
   Future<void> selectFamily(Family family) async {
-    final members = await _repo.getMembers(family.id);
+    final members = await _loadMembersFromServer(family.id);
     state = FamilyState(
       families: state.families,
       currentFamily: family,
@@ -76,42 +101,21 @@ class FamilyNotifier extends Notifier<FamilyState> {
   }
 
   Future<void> createFamily(String name) async {
-    final user = ref.read(authProvider).user;
-    if (user == null) return;
-
-    final id = const Uuid().v4();
-    final family = Family(id: id, name: name, createdBy: user.id);
-    await _repo.insertFamily(family);
-
-    final member = FamilyMember(
-      id: const Uuid().v4(),
-      familyId: id,
-      userId: user.id,
-      role: 'admin',
-    );
-    await _repo.insertMember(member);
-
-    if (ConnectivityService().isOnline) {
-      try {
-        await _apiClient.dio.post('/families', data: {'id': id, 'name': name});
-      } catch (_) {}
+    try {
+      await _apiClient.dio.post('/families', data: {'name': name});
+      await loadFamilies();
+    } catch (e) {
+      debugPrint('[Family] Create failed: $e');
     }
-
-    await loadFamilies();
   }
 
   Future<void> refreshWithSync() async {
-    if (ConnectivityService().isOnline) {
-      try {
-        await SyncService().sync();
-      } catch (_) {}
-    }
     await loadFamilies();
   }
 
   Future<void> loadMembers() async {
     if (state.currentFamily == null) return;
-    final members = await _repo.getMembers(state.currentFamily!.id);
+    final members = await _loadMembersFromServer(state.currentFamily!.id);
     state = FamilyState(
       families: state.families,
       currentFamily: state.currentFamily,
@@ -128,21 +132,24 @@ class FamilyNotifier extends Notifier<FamilyState> {
     if (family == null) return;
 
     try {
-      final choreRepo = ChoreRepository();
-      final historyRepo = HistoryRepository();
-      final stats = await choreRepo.getStats(family.id);
-      final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
-      final completions = await historyRepo.getCompletionCountsByUser(family.id, startOfMonth, now.toIso8601String());
+      // Use analytics endpoint to get stats
+      final response = await _apiClient.dio.get('/chores/analytics', queryParameters: {'familyId': family.id});
+      final data = response.data;
+      final stats = data['stats'] as Map<String, dynamic>;
 
-      final choreCount = <String, int>{};
-      for (final member in state.members) {
-        choreCount[member.userId] = await choreRepo.getAssignedCount(family.id, member.userId);
+      // Member contributions from analytics
+      final contributions = (data['memberContributions'] as List?) ?? [];
+      final completedCount = <String, int>{};
+      for (final c in contributions) {
+        completedCount[c['userId'] as String] = c['count'] as int;
       }
 
-      final completedCount = <String, int>{};
-      for (final row in completions) {
-        completedCount[row['user_id'] as String] = row['count'] as int;
+      // Get assigned count per member from chores
+      final choresResp = await _apiClient.dio.get('/chores', queryParameters: {'familyId': family.id});
+      final chores = choresResp.data as List;
+      final choreCount = <String, int>{};
+      for (final member in state.members) {
+        choreCount[member.userId] = chores.where((c) => c['assignedTo'] == member.userId).length;
       }
 
       state = FamilyState(
@@ -151,11 +158,11 @@ class FamilyNotifier extends Notifier<FamilyState> {
         members: state.members,
         memberChoreCount: choreCount,
         memberCompletedCount: completedCount,
-        totalChores: stats['total'] ?? 0,
-        completedChores: stats['done'] ?? 0,
+        totalChores: stats['total'] as int? ?? 0,
+        completedChores: stats['done'] as int? ?? 0,
       );
     } catch (e) {
-      debugPrint('Load member stats error: $e');
+      debugPrint('[Family] Load member stats failed: $e');
     }
   }
 }

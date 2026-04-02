@@ -1,10 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/invitation.dart';
 import '../models/user.dart';
-import '../repositories/invitation_repository.dart';
 import '../services/api_client.dart';
-import '../services/connectivity_service.dart';
-import '../services/sync_service.dart';
 import 'auth_provider.dart';
 
 class InvitationState {
@@ -24,9 +22,7 @@ class InvitationState {
 }
 
 class InvitationNotifier extends Notifier<InvitationState> {
-  final InvitationRepository _repo = InvitationRepository();
   final ApiClient _apiClient = ApiClient();
-  final SyncService _syncService = SyncService();
 
   @override
   InvitationState build() {
@@ -40,39 +36,24 @@ class InvitationNotifier extends Notifier<InvitationState> {
 
     state = InvitationState(isLoading: true);
 
-    if (ConnectivityService().isOnline) {
-      try {
-        final response = await _apiClient.dio.get('/invitations/incoming');
-        final invitations = (response.data as List)
-            .map((i) => Invitation.fromJson(i))
-            .toList();
-        for (final inv in invitations) {
-          await _repo.insertInvitation(inv);
-        }
-        state = InvitationState(incoming: invitations);
-        return;
-      } catch (_) {}
+    try {
+      final response = await _apiClient.dio.get('/invitations/incoming');
+      final invitations = (response.data as List).map((i) => Invitation.fromJson(i)).toList();
+      state = InvitationState(incoming: invitations);
+    } catch (e) {
+      debugPrint('[Invitations] Load failed: $e');
+      state = InvitationState(error: 'Failed to load invitations');
     }
-
-    final invitations = await _repo.getIncomingInvitations(user.id);
-    state = InvitationState(incoming: invitations);
   }
 
   Future<void> searchUsers(String query) async {
-    if (!ConnectivityService().isOnline) {
-      state = InvitationState(
-        incoming: state.incoming,
-        error: 'You need an internet connection to search for users.',
-      );
-      return;
-    }
-
     state = InvitationState(incoming: state.incoming, isSearching: true);
     try {
       final response = await _apiClient.dio.get('/users/search', queryParameters: {'q': query});
       final users = (response.data as List).map((u) => User.fromJson(u)).toList();
       state = InvitationState(incoming: state.incoming, searchResults: users);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Invitations] Search failed: $e');
       state = InvitationState(incoming: state.incoming, error: 'Search failed. Try again.');
     }
   }
@@ -83,7 +64,8 @@ class InvitationNotifier extends Notifier<InvitationState> {
         'familyId': familyId,
         'toUserId': toUserId,
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Invitations] Send failed: $e');
       state = InvitationState(
         incoming: state.incoming,
         searchResults: state.searchResults,
@@ -93,27 +75,17 @@ class InvitationNotifier extends Notifier<InvitationState> {
   }
 
   Future<bool> respondToInvitation(String id, String status) async {
-    // Try to call the server directly first (proper accept/decline flow)
-    if (ConnectivityService().isOnline) {
-      try {
-        await _apiClient.dio.patch('/invitations/$id', data: {'status': status});
-        await _repo.updateStatus(id, status);
-        // Sync to pull the new family membership data
-        await _syncService.sync();
-        await loadInvitations();
-        return true;
-      } catch (_) {
-        state = InvitationState(
-          incoming: state.incoming,
-          error: 'Failed to respond. Please try again.',
-        );
-        return false;
-      }
-    } else {
-      // Offline: queue locally for later sync
-      await _repo.updateStatus(id, status);
+    try {
+      await _apiClient.dio.patch('/invitations/$id', data: {'status': status});
       await loadInvitations();
       return true;
+    } catch (e) {
+      debugPrint('[Invitations] Respond failed: $e');
+      state = InvitationState(
+        incoming: state.incoming,
+        error: 'Failed to respond. Please try again.',
+      );
+      return false;
     }
   }
 

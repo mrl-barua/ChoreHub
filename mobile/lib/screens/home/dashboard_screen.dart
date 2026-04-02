@@ -6,9 +6,8 @@ import '../../models/chore_history.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
-import '../../repositories/chore_repository.dart';
-import '../../repositories/history_repository.dart';
 import '../../models/chore.dart';
+import '../../services/api_client.dart';
 import '../../widgets/animated_list_item.dart';
 import '../../widgets/chore_card.dart';
 import '../../widgets/dashboard_stats.dart';
@@ -40,22 +39,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (user == null || family == null) return;
 
     try {
-      final choreRepo = ChoreRepository();
-      final historyRepo = HistoryRepository();
+      final api = ApiClient();
 
+      // Fetch chores and analytics from server in parallel
       final results = await Future.wait([
-        choreRepo.getMyChores(family.id, user.id),
-        choreRepo.getMyPendingAssignments(family.id, user.id),
-        historyRepo.getRecentHistory(family.id, limit: 10),
-        historyRepo.calculateStreak(user.id, family.id),
+        api.dio.get('/chores', queryParameters: {'familyId': family.id}),
+        api.dio.get('/chores/history', queryParameters: {'familyId': family.id, 'limit': 10}),
+        api.dio.get('/chores/analytics', queryParameters: {'familyId': family.id}),
       ]);
+
+      final allChores = (results[0].data as List).map((c) => Chore.fromJson(c)).toList();
+      final history = (results[1].data as List).map((h) => ChoreHistory.fromJson(h)).toList();
+      final analytics = results[2].data;
+
+      final myChores = allChores.where((c) => c.assignedTo == user.id && !c.isDone).toList();
+      final pending = allChores.where((c) => c.assignedTo == user.id && c.isPendingAcceptance).toList();
+      final streak = analytics['currentStreak'] as int? ?? 0;
 
       if (mounted) {
         setState(() {
-          _myChores = results[0] as List<Chore>;
-          _pendingAssignments = results[1] as List<Chore>;
-          _recentActivity = results[2] as List<ChoreHistory>;
-          _streak = results[3] as int;
+          _myChores = myChores;
+          _pendingAssignments = pending;
+          _recentActivity = history;
+          _streak = streak;
         });
       }
     } catch (_) {

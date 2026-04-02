@@ -1,13 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
 import '../models/chore.dart';
-import '../models/chore_history.dart';
-import '../repositories/chore_repository.dart';
-import '../repositories/history_repository.dart';
 import '../services/api_client.dart';
-import '../services/connectivity_service.dart';
-import '../services/sync_service.dart';
-import 'auth_provider.dart';
 import 'family_provider.dart';
 
 enum ChoreSort { newest, dueDate, priority }
@@ -19,14 +13,16 @@ class ChoreState {
   final String searchQuery;
   final Map<String, int> stats;
   final bool isLoading;
+  final String? error;
 
   ChoreState({
     this.chores = const [],
     this.filter = 'all',
     this.sort = ChoreSort.newest,
     this.searchQuery = '',
-    this.stats = const {'total': 0, 'done': 0, 'pending': 0},
+    this.stats = const {'total': 0, 'done': 0, 'pending': 0, 'overdue': 0},
     this.isLoading = false,
+    this.error,
   });
 
   List<Chore> get filteredChores {
@@ -40,53 +36,64 @@ class ChoreState {
 }
 
 class ChoreNotifier extends Notifier<ChoreState> {
-  final ChoreRepository _repo = ChoreRepository();
-  final HistoryRepository _historyRepo = HistoryRepository();
-  final SyncService _syncService = SyncService();
+  final ApiClient _apiClient = ApiClient();
 
   @override
   ChoreState build() {
-    loadChores();
+    _init();
     return ChoreState(isLoading: true);
+  }
+
+  void _init() {
+    ref.listen(familyProvider, (prev, next) {
+      final prevFamily = prev?.currentFamily?.id;
+      final nextFamily = next.currentFamily?.id;
+      if (nextFamily != null && nextFamily != prevFamily) {
+        loadChores();
+      }
+    });
+    loadChores();
   }
 
   Future<void> loadChores() async {
     final family = ref.read(familyProvider).currentFamily;
-    if (family == null) {
-      state = ChoreState();
-      return;
+    if (family == null) return;
+
+    try {
+      final response = await _apiClient.dio.get('/chores', queryParameters: {'familyId': family.id});
+      final allChores = (response.data as List).map((c) => Chore.fromJson(c)).toList();
+
+      Map<String, int> stats = {'total': 0, 'done': 0, 'pending': 0, 'overdue': 0};
+      try {
+        final statsResp = await _apiClient.dio.get('/chores/stats', queryParameters: {'familyId': family.id});
+        stats = Map<String, int>.from(statsResp.data);
+      } catch (_) {}
+
+      // Apply local filter
+      List<Chore> filtered;
+      if (state.filter == 'all') {
+        filtered = allChores;
+      } else if (state.filter == 'overdue') {
+        final now = DateTime.now();
+        filtered = allChores.where((c) {
+          if (c.dueDate == null || c.isDone) return false;
+          try { return DateTime.parse(c.dueDate!).isBefore(now); } catch (_) { return false; }
+        }).toList();
+      } else {
+        filtered = allChores.where((c) => c.status == state.filter).toList();
+      }
+
+      final sorted = _sortChores(filtered, state.sort);
+      state = ChoreState(chores: sorted, filter: state.filter, sort: state.sort, searchQuery: state.searchQuery, stats: stats);
+    } catch (e) {
+      debugPrint('[Chores] Load failed: $e');
+      state = ChoreState(error: 'Failed to load chores');
     }
-
-    final filterValue = state.filter == 'all' ? null : state.filter;
-    final chores = await _repo.getChoresByFamily(family.id, statusFilter: filterValue);
-    final stats = await _repo.getStats(family.id);
-
-    final sorted = _sortChores(chores, state.sort);
-
-    state = ChoreState(
-      chores: sorted,
-      filter: state.filter,
-      sort: state.sort,
-      searchQuery: state.searchQuery,
-      stats: stats,
-    );
   }
 
   Future<void> setFilter(String filter) async {
-    final family = ref.read(familyProvider).currentFamily;
-    if (family == null) return;
-
-    List<Chore> chores;
-    if (filter == 'overdue') {
-      chores = await _repo.getOverdueChores(family.id);
-    } else {
-      final filterValue = filter == 'all' ? null : filter;
-      chores = await _repo.getChoresByFamily(family.id, statusFilter: filterValue);
-    }
-    final stats = await _repo.getStats(family.id);
-    final sorted = _sortChores(chores, state.sort);
-
-    state = ChoreState(chores: sorted, filter: filter, sort: state.sort, searchQuery: state.searchQuery, stats: stats);
+    state = ChoreState(chores: state.chores, filter: filter, sort: state.sort, searchQuery: state.searchQuery, stats: state.stats, isLoading: true);
+    await loadChores();
   }
 
   void setSort(ChoreSort sort) {
@@ -127,118 +134,67 @@ class ChoreNotifier extends Notifier<ChoreState> {
     String? description,
     String? recurrence,
   }) async {
-    final user = ref.read(authProvider).user;
     final family = ref.read(familyProvider).currentFamily;
-    if (user == null || family == null) return;
+    if (family == null) return;
 
-    final chore = Chore(
-      id: const Uuid().v4(),
-      familyId: family.id,
-      title: title,
-      category: category,
-      timeSlot: timeSlot,
-      assignedTo: assignedTo,
-      assignmentStatus: assignedTo != null ? 'pending_acceptance' : 'unassigned',
-      dueDate: dueDate,
-      createdBy: user.id,
-      priority: priority,
-      description: description,
-      recurrence: recurrence,
-    );
-
-    await _repo.insertChore(chore);
-    await _recordHistory(chore.id, family.id, user.id, 'created');
-    if (assignedTo != null) {
-      await _recordHistory(chore.id, family.id, user.id, 'assigned');
+    try {
+      await _apiClient.dio.post('/chores', data: {
+        'familyId': family.id,
+        'title': title, 'category': category, 'timeSlot': timeSlot,
+        'assignedTo': assignedTo, 'dueDate': dueDate, 'priority': priority,
+        'description': description, 'recurrence': recurrence,
+      });
+      await loadChores();
+    } catch (e) {
+      debugPrint('[Chores] Create failed: $e');
     }
-    await loadChores();
-    _syncService.sync();
-  }
-
-  Future<void> _recordHistory(String choreId, String familyId, String userId, String action) async {
-    final entry = ChoreHistory(
-      id: const Uuid().v4(),
-      choreId: choreId,
-      familyId: familyId,
-      userId: userId,
-      action: action,
-      createdAt: DateTime.now().toIso8601String(),
-    );
-    await _historyRepo.recordAction(entry);
   }
 
   Future<void> toggleStatus(String choreId) async {
-    final chore = await _repo.getChoreById(choreId);
+    final chore = state.chores.where((c) => c.id == choreId).firstOrNull;
     if (chore == null) return;
-
-    final updated = chore.copyWith(
-      status: chore.isDone ? 'pending' : 'done',
-      updatedAt: DateTime.now().toIso8601String(),
-      syncStatus: 'pending',
-    );
-    await _repo.updateChore(updated);
-    final user = ref.read(authProvider).user;
-    if (user != null) {
-      await _recordHistory(choreId, chore.familyId, user.id, chore.isDone ? 'reopened' : 'completed');
+    try {
+      await _apiClient.dio.patch('/chores/$choreId', data: {'status': chore.isDone ? 'pending' : 'done'});
+      await loadChores();
+    } catch (e) {
+      debugPrint('[Chores] Toggle failed: $e');
     }
-    await loadChores();
-    _syncService.sync();
   }
 
   Future<void> updateChore(Chore chore) async {
-    await _repo.updateChore(chore);
-    await loadChores();
-    _syncService.sync();
+    try {
+      await _apiClient.dio.patch('/chores/${chore.id}', data: {
+        'title': chore.title, 'category': chore.category, 'timeSlot': chore.timeSlot,
+        'assignedTo': chore.assignedTo, 'status': chore.status, 'dueDate': chore.dueDate,
+        'priority': chore.priority, 'description': chore.description, 'recurrence': chore.recurrence,
+      });
+      await loadChores();
+    } catch (e) {
+      debugPrint('[Chores] Update failed: $e');
+    }
   }
 
   Future<void> deleteChore(String id) async {
-    await _repo.deleteChore(id);
-    await loadChores();
-    _syncService.sync();
+    try {
+      await _apiClient.dio.delete('/chores/$id');
+      await loadChores();
+    } catch (e) {
+      debugPrint('[Chores] Delete failed: $e');
+    }
   }
 
   Future<bool> respondToAssignment(String choreId, String assignmentStatus) async {
-    if (ConnectivityService().isOnline) {
-      try {
-        final apiClient = ApiClient();
-        await apiClient.dio.patch('/chores/$choreId/assignment', data: {
-          'assignmentStatus': assignmentStatus,
-        });
-        final chore = await _repo.getChoreById(choreId);
-        if (chore != null) {
-          final updated = chore.copyWith(
-            assignmentStatus: assignmentStatus,
-            updatedAt: DateTime.now().toIso8601String(),
-            syncStatus: 'synced',
-          );
-          await _repo.updateChore(updated);
-          final user = ref.read(authProvider).user;
-          if (user != null) {
-            await _recordHistory(choreId, chore.familyId, user.id, assignmentStatus);
-          }
-        }
-        await loadChores();
-        return true;
-      } catch (_) {
-        return false;
-      }
-    } else {
-      final chore = await _repo.getChoreById(choreId);
-      if (chore != null) {
-        final updated = chore.copyWith(
-          assignmentStatus: assignmentStatus,
-          updatedAt: DateTime.now().toIso8601String(),
-          syncStatus: 'pending',
-        );
-        await _repo.updateChore(updated);
-      }
+    try {
+      await _apiClient.dio.patch('/chores/$choreId/assignment', data: {'assignmentStatus': assignmentStatus});
       await loadChores();
       return true;
+    } catch (e) {
+      debugPrint('[Chores] Respond failed: $e');
+      return false;
     }
   }
 
   Future<void> refresh() async {
-    await _syncService.sync();
     await loadChores();
   }
 }

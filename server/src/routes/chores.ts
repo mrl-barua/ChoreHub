@@ -184,6 +184,154 @@ router.patch('/:id/assignment', authenticate, async (req: AuthRequest, res: Resp
   }
 });
 
+// Get chore stats for a family
+router.get('/stats', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const familyId = String(req.query.familyId || '');
+    if (!familyId) { res.status(400).json({ error: 'familyId required' }); return; }
+    if (!(await verifyFamilyMembership(req.userId!, familyId))) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    const [total, done, overdue] = await Promise.all([
+      prisma.chore.count({ where: { familyId } }),
+      prisma.chore.count({ where: { familyId, status: 'done' } }),
+      prisma.chore.count({ where: { familyId, status: { not: 'done' }, dueDate: { lt: today } } }),
+    ]);
+    res.json({ total, done, pending: total - done, overdue });
+  } catch (error) { console.error('Stats error:', error); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Get chore history for a family
+router.get('/history', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const familyId = String(req.query.familyId || '');
+    const limit = Math.min(parseInt(String(req.query.limit || '20')), 100);
+    if (!familyId) { res.status(400).json({ error: 'familyId required' }); return; }
+    if (!(await verifyFamilyMembership(req.userId!, familyId))) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const history = await prisma.choreHistory.findMany({
+      where: { familyId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    const choreIds = Array.from(new Set(history.map((h: any) => h.choreId))) as string[];
+    const userIds = Array.from(new Set(history.map((h: any) => h.userId))) as string[];
+    const [chores, users] = await Promise.all([
+      prisma.chore.findMany({ where: { id: { in: choreIds } }, select: { id: true, title: true } }),
+      prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, displayName: true } }),
+    ]);
+
+    const result = history.map((h: any) => ({
+      ...h,
+      createdAt: h.createdAt.toISOString(),
+      userName: users.find(u => u.id === h.userId)?.displayName || 'Unknown',
+      choreTitle: chores.find(c => c.id === h.choreId)?.title || 'Unknown',
+    }));
+    res.json(result);
+  } catch (error) { console.error('History error:', error); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Analytics endpoint
+router.get('/analytics', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const familyId = String(req.query.familyId || '');
+    const userId = req.userId!;
+    if (!familyId) { res.status(400).json({ error: 'familyId required' }); return; }
+    if (!(await verifyFamilyMembership(userId, familyId))) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    const now = new Date();
+
+    // Stats
+    const [total, done, overdue] = await Promise.all([
+      prisma.chore.count({ where: { familyId } }),
+      prisma.chore.count({ where: { familyId, status: 'done' } }),
+      prisma.chore.count({ where: { familyId, status: { not: 'done' }, dueDate: { lt: today } } }),
+    ]);
+
+    // Category breakdown
+    const chores = await prisma.chore.findMany({ where: { familyId }, select: { category: true } });
+    const categoryBreakdown: Record<string, number> = {};
+    chores.forEach(c => { categoryBreakdown[c.category] = (categoryBreakdown[c.category] || 0) + 1; });
+
+    // Weekly completions (last 7 days)
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay() + 1); // Monday
+    weekStart.setHours(0,0,0,0);
+    const weeklyHistory = await prisma.choreHistory.findMany({
+      where: { familyId, action: 'completed', createdAt: { gte: weekStart } },
+    });
+    const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const weeklyCompletions = dayNames.map((name, i) => {
+      const dayDate = new Date(weekStart);
+      dayDate.setDate(weekStart.getDate() + i);
+      const dayStr = dayDate.toISOString().substring(0, 10);
+      const count = weeklyHistory.filter((h: any) => h.createdAt.toISOString().substring(0, 10) === dayStr).length;
+      return { dayName: name, completed: count };
+    });
+
+    // Member contributions (this month)
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthlyHistory = await prisma.choreHistory.findMany({
+      where: { familyId, action: 'completed', createdAt: { gte: monthStart } },
+    });
+    const memberMap: Record<string, number> = {};
+    monthlyHistory.forEach((h: any) => { memberMap[h.userId] = (memberMap[h.userId] || 0) + 1; });
+    const memberIds = Object.keys(memberMap);
+    const memberUsers = memberIds.length > 0
+      ? await prisma.user.findMany({ where: { id: { in: memberIds } }, select: { id: true, displayName: true } })
+      : [];
+    const memberContributions = memberIds.map(uid => ({
+      userId: uid,
+      displayName: memberUsers.find(u => u.id === uid)?.displayName || 'Unknown',
+      count: memberMap[uid],
+    })).sort((a, b) => b.count - a.count);
+
+    // Completion trend (last 4 weeks)
+    const completionTrend = [];
+    for (let w = 3; w >= 0; w--) {
+      const ws = new Date(now);
+      ws.setDate(now.getDate() - now.getDay() + 1 - (w * 7));
+      ws.setHours(0,0,0,0);
+      const we = new Date(ws);
+      we.setDate(ws.getDate() + 6);
+      we.setHours(23,59,59,999);
+      const count = await prisma.choreHistory.count({
+        where: { familyId, action: 'completed', createdAt: { gte: ws, lte: we } },
+      });
+      const label = w === 0 ? 'This Week' : w === 1 ? 'Last Week' : `Wk -${w}`;
+      completionTrend.push({ label, rate: count });
+    }
+
+    // Streak for current user
+    const userHistory = await prisma.choreHistory.findMany({
+      where: { userId, familyId, action: 'completed' },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+    const uniqueDays = Array.from(new Set(userHistory.map((h: any) => h.createdAt.toISOString().substring(0, 10)))) as string[];
+    let streak = 0;
+    let checkDate = new Date();
+    for (const dayStr of uniqueDays) {
+      const day = new Date(dayStr);
+      const diffMs = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate()).getTime()
+                   - new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+      const diffDays = Math.round(diffMs / 86400000);
+      if (diffDays <= 1) { streak++; checkDate = day; } else { break; }
+    }
+
+    res.json({
+      stats: { total, done, pending: total - done, overdue },
+      categoryBreakdown,
+      weeklyCompletions,
+      memberContributions,
+      completionTrend,
+      currentStreak: streak,
+    });
+  } catch (error) { console.error('Analytics error:', error); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = String(req.params.id);

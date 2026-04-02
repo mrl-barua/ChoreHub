@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../repositories/chore_repository.dart';
-import '../repositories/history_repository.dart';
+import '../services/api_client.dart';
 import 'auth_provider.dart';
 import 'family_provider.dart';
 
@@ -32,6 +32,7 @@ class AnalyticsState {
   final int currentStreak;
   final int totalCompleted;
   final bool isLoading;
+  final String? error;
 
   AnalyticsState({
     this.weeklyCompletions = const [],
@@ -42,12 +43,12 @@ class AnalyticsState {
     this.currentStreak = 0,
     this.totalCompleted = 0,
     this.isLoading = false,
+    this.error,
   });
 }
 
 class AnalyticsNotifier extends Notifier<AnalyticsState> {
-  final ChoreRepository _choreRepo = ChoreRepository();
-  final HistoryRepository _historyRepo = HistoryRepository();
+  final ApiClient _apiClient = ApiClient();
 
   @override
   AnalyticsState build() {
@@ -65,86 +66,54 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
 
     state = AnalyticsState(isLoading: true);
 
-    final results = await Future.wait([
-      _loadWeeklyCompletions(family.id),
-      _choreRepo.getCategoryBreakdown(family.id),
-      _loadMemberContributions(family.id),
-      _loadCompletionTrend(family.id),
-      _choreRepo.getStats(family.id),
-      _historyRepo.calculateStreak(user.id, family.id),
-    ]);
+    try {
+      final response = await _apiClient.dio.get('/chores/analytics', queryParameters: {
+        'familyId': family.id,
+      });
+      final data = response.data;
 
-    final weekly = results[0] as List<DayCompletion>;
-    final categories = results[1] as Map<String, int>;
-    final members = results[2] as List<MemberContribution>;
-    final trend = results[3] as List<WeeklyRate>;
-    final stats = results[4] as Map<String, int>;
-    final streak = results[5] as int;
+      // Parse stats
+      final stats = data['stats'] as Map<String, dynamic>;
 
-    state = AnalyticsState(
-      weeklyCompletions: weekly,
-      categoryBreakdown: categories,
-      memberContributions: members,
-      completionTrend: trend,
-      overdueCount: stats['overdue'] ?? 0,
-      currentStreak: streak,
-      totalCompleted: stats['done'] ?? 0,
-    );
-  }
+      // Parse weekly completions
+      final weeklyRaw = (data['weeklyCompletions'] as List?) ?? [];
+      final weekly = weeklyRaw.map((w) => DayCompletion(
+        w['dayName'] as String,
+        w['completed'] as int,
+      )).toList();
 
-  Future<List<DayCompletion>> _loadWeeklyCompletions(String familyId) async {
-    final now = DateTime.now();
-    final monday = now.subtract(Duration(days: now.weekday - 1));
-    final startDate = DateTime(monday.year, monday.month, monday.day).toIso8601String();
-    final endDate = now.toIso8601String();
+      // Parse category breakdown
+      final catRaw = (data['categoryBreakdown'] as Map<String, dynamic>?) ?? {};
+      final categories = catRaw.map((k, v) => MapEntry(k, v as int));
 
-    final completions = await _historyRepo.getCompletionsByDateRange(familyId, startDate, endDate);
-    final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final result = <DayCompletion>[];
+      // Parse member contributions
+      final membersRaw = (data['memberContributions'] as List?) ?? [];
+      final members = membersRaw.map((m) => MemberContribution(
+        m['userId'] as String,
+        m['displayName'] as String? ?? 'Unknown',
+        m['count'] as int,
+      )).toList();
 
-    for (int i = 0; i < 7; i++) {
-      final day = monday.add(Duration(days: i));
-      final dayStr = day.toIso8601String().substring(0, 10);
-      final match = completions.where((c) => c['day'] == dayStr);
-      final count = match.isNotEmpty ? match.first['count'] as int : 0;
-      result.add(DayCompletion(dayNames[i], count));
+      // Parse completion trend
+      final trendRaw = (data['completionTrend'] as List?) ?? [];
+      final trend = trendRaw.map((t) => WeeklyRate(
+        t['label'] as String,
+        (t['rate'] as num).toDouble(),
+      )).toList();
+
+      state = AnalyticsState(
+        weeklyCompletions: weekly,
+        categoryBreakdown: categories,
+        memberContributions: members,
+        completionTrend: trend,
+        overdueCount: stats['overdue'] as int? ?? 0,
+        currentStreak: data['currentStreak'] as int? ?? 0,
+        totalCompleted: stats['done'] as int? ?? 0,
+      );
+    } catch (e) {
+      debugPrint('[Analytics] Load failed: $e');
+      state = AnalyticsState(error: 'Failed to load analytics');
     }
-    return result;
-  }
-
-  Future<List<MemberContribution>> _loadMemberContributions(String familyId) async {
-    final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
-    final endDate = now.toIso8601String();
-
-    final counts = await _historyRepo.getCompletionCountsByUser(familyId, startOfMonth, endDate);
-    return counts.map((row) => MemberContribution(
-          row['user_id'] as String,
-          row['display_name'] as String? ?? 'Unknown',
-          row['count'] as int,
-        )).toList();
-  }
-
-  Future<List<WeeklyRate>> _loadCompletionTrend(String familyId) async {
-    final result = <WeeklyRate>[];
-    final now = DateTime.now();
-
-    for (int w = 3; w >= 0; w--) {
-      final weekStart = now.subtract(Duration(days: now.weekday - 1 + (w * 7)));
-      final weekEnd = weekStart.add(const Duration(days: 6, hours: 23, minutes: 59));
-      final startStr = DateTime(weekStart.year, weekStart.month, weekStart.day).toIso8601String();
-      final endStr = weekEnd.toIso8601String();
-
-      final completions = await _historyRepo.getCompletionsByDateRange(familyId, startStr, endStr);
-      int total = 0;
-      for (final c in completions) {
-        total += c['count'] as int;
-      }
-
-      final label = w == 0 ? 'This Week' : w == 1 ? 'Last Week' : 'Wk -$w';
-      result.add(WeeklyRate(label, total.toDouble()));
-    }
-    return result;
   }
 }
 

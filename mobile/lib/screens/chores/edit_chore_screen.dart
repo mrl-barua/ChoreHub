@@ -5,7 +5,6 @@ import '../../config/theme.dart';
 import '../../models/chore.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
-import '../../repositories/chore_repository.dart';
 
 const _categories = ['cleaning', 'cooking', 'dishwashing', 'laundry', 'gardening', 'shopping', 'other'];
 const _timeSlots = ['morning', 'lunch', 'evening'];
@@ -41,7 +40,7 @@ class _EditChoreScreenState extends ConsumerState<EditChoreScreen> {
   }
 
   Future<void> _loadChore() async {
-    final chore = await ChoreRepository().getChoreById(widget.choreId);
+    final chore = ref.read(choreProvider).chores.where((c) => c.id == widget.choreId).firstOrNull;
     if (chore != null) {
       _titleController.text = chore.title;
       _descriptionController.text = chore.description ?? '';
