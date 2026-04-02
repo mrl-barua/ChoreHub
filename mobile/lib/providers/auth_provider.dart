@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
+import '../services/socket_service.dart';
 import '../services/sync_service.dart';
 import 'chore_provider.dart';
 import 'family_provider.dart';
@@ -33,15 +35,16 @@ class AuthNotifier extends Notifier<AuthState> {
       if (user != null) {
         state = AuthState(user: user);
         // Sync to restore data from server (DB was cleared on logout)
-        try { await SyncService().sync(); } catch (_) {}
+        try { await SyncService().sync(); } catch (e) { debugPrint('Sync after load: $e'); }
         ref.invalidate(familyProvider);
         ref.invalidate(choreProvider);
         ref.invalidate(invitationProvider);
-      ref.invalidate(messageProvider);
+        ref.invalidate(messageProvider);
       } else {
         state = AuthState();
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Load current user error: $e');
       state = AuthState();
     }
   }
@@ -53,7 +56,7 @@ class AuthNotifier extends Notifier<AuthState> {
       final user = await _authService.login(email: email, password: password);
       state = AuthState(user: user);
       // Sync from server to restore user's data, then rebuild providers
-      try { await SyncService().sync(); } catch (_) {}
+      try { await SyncService().sync(); } catch (e) { debugPrint('Sync after login: $e'); }
       ref.invalidate(familyProvider);
       ref.invalidate(choreProvider);
       ref.invalidate(invitationProvider);
@@ -89,11 +92,14 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // Disconnect socket before clearing auth state
+    SocketService().disconnect();
     await _authService.logout();
     // Force other providers to clear stale data
     ref.invalidate(familyProvider);
     ref.invalidate(choreProvider);
     ref.invalidate(invitationProvider);
+    ref.invalidate(messageProvider);
     // Force a clean unauthenticated state
     state = AuthState();
   }

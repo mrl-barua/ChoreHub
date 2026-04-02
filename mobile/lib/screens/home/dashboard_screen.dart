@@ -39,23 +39,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final family = ref.read(familyProvider).currentFamily;
     if (user == null || family == null) return;
 
-    final choreRepo = ChoreRepository();
-    final historyRepo = HistoryRepository();
+    try {
+      final choreRepo = ChoreRepository();
+      final historyRepo = HistoryRepository();
 
-    final results = await Future.wait([
-      choreRepo.getMyChores(family.id, user.id),
-      choreRepo.getMyPendingAssignments(family.id, user.id),
-      historyRepo.getRecentHistory(family.id, limit: 10),
-      historyRepo.calculateStreak(user.id, family.id),
-    ]);
+      final results = await Future.wait([
+        choreRepo.getMyChores(family.id, user.id),
+        choreRepo.getMyPendingAssignments(family.id, user.id),
+        historyRepo.getRecentHistory(family.id, limit: 10),
+        historyRepo.calculateStreak(user.id, family.id),
+      ]);
 
-    if (mounted) {
-      setState(() {
-        _myChores = results[0] as List<Chore>;
-        _pendingAssignments = results[1] as List<Chore>;
-        _recentActivity = results[2] as List<ChoreHistory>;
-        _streak = results[3] as int;
-      });
+      if (mounted) {
+        setState(() {
+          _myChores = results[0] as List<Chore>;
+          _pendingAssignments = results[1] as List<Chore>;
+          _recentActivity = results[2] as List<ChoreHistory>;
+          _streak = results[3] as int;
+        });
+      }
+    } catch (_) {
+      // Data load failed — dashboard still renders with empty state
     }
   }
 

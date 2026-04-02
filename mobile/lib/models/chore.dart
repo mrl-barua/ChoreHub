@@ -1,4 +1,6 @@
-class Chore {
+import 'package:equatable/equatable.dart';
+
+class Chore extends Equatable {
   final String id;
   final String familyId;
   final String title;
@@ -16,7 +18,7 @@ class Chore {
   final String? recurrence; // null, 'daily', 'weekly', 'monthly'
   final String assignmentStatus; // 'unassigned', 'pending_acceptance', 'accepted', 'declined'
 
-  Chore({
+  const Chore({
     required this.id,
     required this.familyId,
     required this.title,
@@ -49,6 +51,9 @@ class Chore {
       return false;
     }
   }
+
+  @override
+  List<Object?> get props => [id, familyId, title, category, timeSlot, assignedTo, status, dueDate, createdBy, createdAt, updatedAt, syncStatus, priority, description, recurrence, assignmentStatus];
 
   Chore copyWith({
     String? title,

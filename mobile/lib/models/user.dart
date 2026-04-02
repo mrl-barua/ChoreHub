@@ -1,4 +1,6 @@
-class User {
+import 'package:equatable/equatable.dart';
+
+class User extends Equatable {
   final String id;
   final String username;
   final String displayName;
@@ -7,7 +9,7 @@ class User {
   final String? updatedAt;
   final String syncStatus;
 
-  User({
+  const User({
     required this.id,
     required this.username,
     required this.displayName,
@@ -16,6 +18,26 @@ class User {
     this.updatedAt,
     this.syncStatus = 'synced',
   });
+
+  @override
+  List<Object?> get props => [id, username, displayName, email, createdAt, updatedAt, syncStatus];
+
+  User copyWith({
+    String? username,
+    String? displayName,
+    String? email,
+    String? syncStatus,
+  }) {
+    return User(
+      id: id,
+      username: username ?? this.username,
+      displayName: displayName ?? this.displayName,
+      email: email ?? this.email,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+    );
+  }
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(

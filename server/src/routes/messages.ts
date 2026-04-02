@@ -148,6 +148,49 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<v
   }
 });
 
+// Send message via REST (for offline sync)
+router.post('/send', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id, familyId, text, choreId, mentions, replyToId, imageUrl, createdAt } = req.body;
+
+    if (!familyId || !text) {
+      res.status(400).json({ error: 'familyId and text are required' });
+      return;
+    }
+
+    // Verify membership
+    const member = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId: req.userId! } },
+    });
+    if (!member) {
+      res.status(403).json({ error: 'Not a member of this family' });
+      return;
+    }
+
+    // Upsert — don't fail if message already exists (sent via socket)
+    await prisma.message.upsert({
+      where: { id },
+      create: {
+        id,
+        familyId,
+        userId: req.userId!,
+        text,
+        choreId: choreId || null,
+        mentions: mentions || null,
+        replyToId: replyToId || null,
+        imageUrl: imageUrl || null,
+        createdAt: createdAt ? new Date(createdAt) : new Date(),
+      },
+      update: {}, // If it exists, don't overwrite
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Send message error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Upload image
 router.post('/upload', authenticate, upload.single('image'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {

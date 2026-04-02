@@ -20,7 +20,7 @@ router.get('/pull', authenticate, async (req: AuthRequest, res: Response): Promi
       return;
     }
 
-    const [families, familyMembers, chores, invitations, choreHistory] = await Promise.all([
+    const [families, familyMembers, chores, invitations, choreHistory, messages] = await Promise.all([
       prisma.family.findMany({
         where: { id: { in: familyIds }, updatedAt: { gt: sinceDate } },
       }),
@@ -41,6 +41,11 @@ router.get('/pull', authenticate, async (req: AuthRequest, res: Response): Promi
         orderBy: { createdAt: 'desc' },
         take: 100,
       }),
+      prisma.message.findMany({
+        where: { familyId: { in: familyIds }, createdAt: { gt: sinceDate }, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      }),
     ]);
 
     const userIds = new Set<string>();
@@ -54,13 +59,22 @@ router.get('/pull', authenticate, async (req: AuthRequest, res: Response): Promi
       userIds.add(i.toUserId);
     });
     choreHistory.forEach((h) => userIds.add(h.userId));
+    messages.forEach((m: any) => userIds.add(m.userId));
 
     const users = await prisma.user.findMany({
       where: { id: { in: Array.from(userIds) } },
       select: { id: true, username: true, displayName: true, email: true, createdAt: true, updatedAt: true },
     });
 
-    res.json({ families, familyMembers, chores, invitations, users, choreHistory });
+    // Enrich messages with user names for local storage
+    const userMap = new Map(users.map((u) => [u.id, u.displayName]));
+    const enrichedMessages = messages.map((m: any) => ({
+      ...m,
+      createdAt: m.createdAt.toISOString(),
+      userName: userMap.get(m.userId) || 'Unknown',
+    }));
+
+    res.json({ families, familyMembers, chores, invitations, users, choreHistory, messages: enrichedMessages });
   } catch (error) {
     console.error('Sync pull error:', error);
     res.status(500).json({ error: 'Internal server error' });

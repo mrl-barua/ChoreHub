@@ -1,4 +1,6 @@
-class Family {
+import 'package:equatable/equatable.dart';
+
+class Family extends Equatable {
   final String id;
   final String name;
   final String createdBy;
@@ -7,7 +9,7 @@ class Family {
   final String syncStatus;
   final String? role;
 
-  Family({
+  const Family({
     required this.id,
     required this.name,
     required this.createdBy,
@@ -16,6 +18,17 @@ class Family {
     this.syncStatus = 'pending',
     this.role,
   });
+
+  @override
+  List<Object?> get props => [id, name, createdBy, createdAt, updatedAt, syncStatus, role];
+
+  Family copyWith({String? name, String? syncStatus, String? role}) {
+    return Family(
+      id: id, name: name ?? this.name, createdBy: createdBy,
+      createdAt: createdAt, updatedAt: updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus, role: role ?? this.role,
+    );
+  }
 
   factory Family.fromJson(Map<String, dynamic> json) {
     return Family(

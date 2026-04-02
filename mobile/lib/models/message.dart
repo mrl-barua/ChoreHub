@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:equatable/equatable.dart';
 
 class ChoreAttachment {
   final String id;
@@ -51,7 +52,7 @@ class ReplyTo {
   };
 }
 
-class Message {
+class Message extends Equatable {
   final String id;
   final String familyId;
   final String userId;
@@ -69,7 +70,7 @@ class Message {
   final ReplyTo? replyTo;
   final List<String> readBy;
 
-  Message({
+  const Message({
     required this.id,
     required this.familyId,
     required this.userId,
@@ -87,6 +88,9 @@ class Message {
     this.replyTo,
     this.readBy = const [],
   });
+
+  @override
+  List<Object?> get props => [id, familyId, userId, text, createdAt, syncStatus, userName, choreId, mentions, replyToId, imageUrl, reactions, deletedAt, readBy];
 
   bool get hasChoreAttachment => choreId != null && choreId!.isNotEmpty;
   bool get isDeleted => deletedAt != null;

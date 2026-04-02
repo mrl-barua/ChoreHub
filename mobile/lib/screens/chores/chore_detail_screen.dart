@@ -115,9 +115,9 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                   ],
                 ),
               );
-              if (confirm == true && mounted) {
+              if (confirm == true && context.mounted) {
                 await ref.read(choreProvider.notifier).deleteChore(chore.id);
-                if (mounted) context.pop();
+                if (context.mounted) context.pop();
               }
             },
           ),

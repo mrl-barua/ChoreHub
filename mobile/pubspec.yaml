@@ -48,6 +48,7 @@ dependencies:
   socket_io_client: ^3.1.4
   image_picker: ^1.2.1
   url_launcher: ^6.3.2
+  equatable: ^2.0.8
 
 dev_dependencies:
   flutter_test:

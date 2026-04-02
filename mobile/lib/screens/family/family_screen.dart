@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
-import '../../db/database_helper.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
-import '../../repositories/chore_repository.dart';
-import '../../repositories/history_repository.dart';
 import '../../services/api_client.dart';
 import '../../widgets/animated_list_item.dart';
 import '../../widgets/empty_state.dart';
@@ -20,56 +17,13 @@ class FamilyScreen extends ConsumerStatefulWidget {
 }
 
 class _FamilyScreenState extends ConsumerState<FamilyScreen> {
-  Map<String, int> _memberChoreCount = {};
-  Map<String, int> _memberCompletedCount = {};
-  int _totalChores = 0;
-  int _completedChores = 0;
-
   @override
   void initState() {
     super.initState();
     Future.microtask(() async {
       await ref.read(familyProvider.notifier).refreshWithSync();
-      await _loadMemberStats();
+      await ref.read(familyProvider.notifier).loadMemberStats();
     });
-  }
-
-  Future<void> _loadMemberStats() async {
-    final family = ref.read(familyProvider).currentFamily;
-    if (family == null) return;
-
-    final choreRepo = ChoreRepository();
-    final historyRepo = HistoryRepository();
-    final stats = await choreRepo.getStats(family.id);
-    final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
-    final completions = await historyRepo.getCompletionCountsByUser(family.id, startOfMonth, now.toIso8601String());
-
-    final choreCount = <String, int>{};
-    final completedCount = <String, int>{};
-
-    // Count assigned chores per member
-    final db = await DatabaseHelper().database;
-    for (final member in ref.read(familyProvider).members) {
-      final count = await db.rawQuery(
-        "SELECT COUNT(*) as c FROM chores WHERE family_id = ? AND assigned_to = ?",
-        [family.id, member.userId],
-      );
-      choreCount[member.userId] = (count.first['c'] as int?) ?? 0;
-    }
-
-    for (final row in completions) {
-      completedCount[row['user_id'] as String] = row['count'] as int;
-    }
-
-    if (mounted) {
-      setState(() {
-        _memberChoreCount = choreCount;
-        _memberCompletedCount = completedCount;
-        _totalChores = stats['total'] ?? 0;
-        _completedChores = stats['done'] ?? 0;
-      });
-    }
   }
 
   Future<void> _leaveFamily() async {
@@ -127,7 +81,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     try {
       await ApiClient().dio.delete('/families/${family.id}/members/$targetUserId');
       await ref.read(familyProvider.notifier).refreshWithSync();
-      await _loadMemberStats();
+      await ref.read(familyProvider.notifier).loadMemberStats();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$displayName removed')));
       }
@@ -144,6 +98,10 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     final currentUser = ref.watch(authProvider).user;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUserIsAdmin = family.members.any((m) => m.userId == currentUser?.id && m.role == 'admin');
+    final totalChores = family.totalChores;
+    final completedChores = family.completedChores;
+    final memberChoreCount = family.memberChoreCount;
+    final memberCompletedCount = family.memberCompletedCount;
 
     if (family.currentFamily == null) {
       return Scaffold(
@@ -185,7 +143,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           await ref.read(familyProvider.notifier).refreshWithSync();
-          await _loadMemberStats();
+          await ref.read(familyProvider.notifier).loadMemberStats();
         },
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
@@ -246,11 +204,11 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                     const SizedBox(height: 18),
                     Row(
                       children: [
-                        _HeaderStat(icon: Icons.task_rounded, label: 'Total', value: '$_totalChores', color: Colors.white),
+                        _HeaderStat(icon: Icons.task_rounded, label: 'Total', value: '$totalChores', color: Colors.white),
                         const SizedBox(width: 16),
-                        _HeaderStat(icon: Icons.check_circle_rounded, label: 'Done', value: '$_completedChores', color: AppTheme.accentGreen),
+                        _HeaderStat(icon: Icons.check_circle_rounded, label: 'Done', value: '$completedChores', color: AppTheme.accentGreen),
                         const SizedBox(width: 16),
-                        _HeaderStat(icon: Icons.pending_rounded, label: 'Pending', value: '${_totalChores - _completedChores}', color: AppTheme.accentOrange),
+                        _HeaderStat(icon: Icons.pending_rounded, label: 'Pending', value: '${totalChores - completedChores}', color: AppTheme.accentOrange),
                       ],
                     ),
                   ],
@@ -304,8 +262,8 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
             ...family.members.asMap().entries.map((entry) {
               final member = entry.value;
               final isCurrentUser = member.userId == currentUser?.id;
-              final assignedCount = _memberChoreCount[member.userId] ?? 0;
-              final completedCount = _memberCompletedCount[member.userId] ?? 0;
+              final assignedCount = memberChoreCount[member.userId] ?? 0;
+              final completedCount = memberCompletedCount[member.userId] ?? 0;
               final colors = [
                 const Color(0xFF6C63FF),
                 const Color(0xFF00C853),

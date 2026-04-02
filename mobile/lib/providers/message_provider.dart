@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/message.dart';
@@ -62,6 +63,15 @@ class MessageNotifier extends Notifier<MessageState> {
 
   Future<void> _init() async {
     await _socket.connect();
+
+    // Watch family provider — reload messages when family changes
+    ref.listen(familyProvider, (prev, next) {
+      final prevFamily = prev?.currentFamily?.id;
+      final nextFamily = next.currentFamily?.id;
+      if (nextFamily != null && nextFamily != prevFamily) {
+        loadMessages();
+      }
+    });
 
     // Listen for incoming messages
     _messageSub = _socket.onMessage.listen((message) async {
@@ -159,37 +169,48 @@ class MessageNotifier extends Notifier<MessageState> {
   Future<void> loadMessages() async {
     final family = ref.read(familyProvider).currentFamily;
     if (family == null) {
-      state = MessageState();
+      // Family not loaded yet — ref.listen will trigger loadMessages when it arrives
       return;
     }
 
     state = MessageState(isLoading: true);
 
-    // Try to fetch from server first
-    if (ConnectivityService().isOnline) {
+    try {
+      // Always fetch from server to get latest messages (this is the main source of truth)
+      if (ConnectivityService().isOnline) {
+        try {
+          final response = await _apiClient.dio.get('/messages', queryParameters: {
+            'familyId': family.id,
+            'limit': 50,
+          });
+          final serverMessages = (response.data as List).map((m) => Message.fromJson(m)).toList();
+          for (final msg in serverMessages) {
+            await _repo.insertMessage(msg);
+          }
+          debugPrint('Loaded ${serverMessages.length} messages from server for family ${family.id}');
+        } catch (e) {
+          debugPrint('Failed to load messages from server: $e');
+        }
+      }
+
+      // Load from local DB (includes what we just saved from server)
+      final messages = await _repo.getMessages(family.id, limit: 50);
+      final enriched = await _enrichMessages(messages);
+
+      // Load unread count (wrapped separately — table might not exist on old DBs)
+      int unread = 0;
       try {
-        final response = await _apiClient.dio.get('/messages', queryParameters: {
-          'familyId': family.id,
-          'limit': 50,
-        });
-        final serverMessages = (response.data as List).map((m) => Message.fromJson(m)).toList();
-        for (final msg in serverMessages) {
-          await _repo.insertMessage(msg);
+        final user = ref.read(authProvider).user;
+        if (user != null) {
+          unread = await _repo.getUnreadCount(family.id, user.id);
         }
       } catch (_) {}
+
+      state = MessageState(messages: enriched, hasMore: messages.length >= 50, unreadCount: unread);
+    } catch (e) {
+      debugPrint('loadMessages error: $e');
+      state = MessageState();
     }
-
-    final messages = await _repo.getMessages(family.id, limit: 50);
-    final enriched = await _enrichMessages(messages);
-
-    // Load unread count
-    final user = ref.read(authProvider).user;
-    int unread = 0;
-    if (user != null) {
-      unread = await _repo.getUnreadCount(family.id, user.id);
-    }
-
-    state = MessageState(messages: enriched, hasMore: messages.length >= 50, unreadCount: unread);
   }
 
   Future<void> loadMore() async {
@@ -298,7 +319,7 @@ class MessageNotifier extends Notifier<MessageState> {
       final response = await _apiClient.dio.post('/messages/upload', data: formData);
       return response.data['imageUrl'] as String?;
     } catch (e) {
-      print('Image upload error: $e');
+      debugPrint('Image upload error: $e');
       return null;
     }
   }

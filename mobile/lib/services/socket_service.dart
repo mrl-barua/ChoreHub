@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../config/api_config.dart';
 import '../models/message.dart';
+import 'logger.dart';
 
 class SocketService {
   static final SocketService _instance = SocketService._internal();
@@ -44,7 +45,7 @@ class SocketService {
         .build());
 
     _socket!.onConnect((_) {
-      print('Socket.IO connected');
+      AppLogger.info('Socket', 'Connected');
     });
 
     _socket!.on('new_message', (data) {
@@ -73,11 +74,11 @@ class SocketService {
     });
 
     _socket!.onDisconnect((_) {
-      print('Socket.IO disconnected');
+      AppLogger.info('Socket', 'Disconnected');
     });
 
     _socket!.onConnectError((err) {
-      print('Socket.IO connection error: $err');
+      AppLogger.error('Socket', 'Connection error: $err');
     });
   }
 

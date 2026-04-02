@@ -143,6 +143,21 @@ const List<String> migrationV7 = [
   createMessageReadReceiptsTable,
 ];
 
+// Migration from v7 to v8: add indexes for frequently queried columns
+const List<String> migrationV8 = [
+  "CREATE INDEX IF NOT EXISTS idx_chores_family_id ON chores(family_id)",
+  "CREATE INDEX IF NOT EXISTS idx_chores_sync_status ON chores(sync_status)",
+  "CREATE INDEX IF NOT EXISTS idx_chores_assigned_to ON chores(assigned_to)",
+  "CREATE INDEX IF NOT EXISTS idx_messages_family_id ON messages(family_id)",
+  "CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(family_id, created_at)",
+  "CREATE INDEX IF NOT EXISTS idx_family_members_family_id ON family_members(family_id)",
+  "CREATE INDEX IF NOT EXISTS idx_family_members_user_id ON family_members(user_id)",
+  "CREATE INDEX IF NOT EXISTS idx_chore_history_family_id ON chore_history(family_id)",
+  "CREATE INDEX IF NOT EXISTS idx_chore_history_user_id ON chore_history(user_id)",
+  "CREATE INDEX IF NOT EXISTS idx_invitations_to_user ON invitations(to_user_id, status)",
+  "CREATE INDEX IF NOT EXISTS idx_read_receipts_message ON message_read_receipts(message_id)",
+];
+
 const String createSyncMetaTable = '''
   CREATE TABLE IF NOT EXISTS sync_meta (
     key TEXT PRIMARY KEY,

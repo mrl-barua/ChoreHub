@@ -1,6 +1,7 @@
+import 'package:equatable/equatable.dart';
 import 'user.dart';
 
-class Invitation {
+class Invitation extends Equatable {
   final String id;
   final String familyId;
   final String fromUserId;
@@ -12,7 +13,7 @@ class Invitation {
   final String? familyName;
   final User? fromUser;
 
-  Invitation({
+  const Invitation({
     required this.id,
     required this.familyId,
     required this.fromUserId,
@@ -24,6 +25,17 @@ class Invitation {
     this.familyName,
     this.fromUser,
   });
+
+  @override
+  List<Object?> get props => [id, familyId, fromUserId, toUserId, status, createdAt, updatedAt, syncStatus, familyName, fromUser];
+
+  Invitation copyWith({String? status, String? syncStatus}) {
+    return Invitation(
+      id: id, familyId: familyId, fromUserId: fromUserId, toUserId: toUserId,
+      status: status ?? this.status, createdAt: createdAt, updatedAt: updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus, familyName: familyName, fromUser: fromUser,
+    );
+  }
 
   factory Invitation.fromJson(Map<String, dynamic> json) {
     return Invitation(

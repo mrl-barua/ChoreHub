@@ -1,4 +1,6 @@
-class ChoreHistory {
+import 'package:equatable/equatable.dart';
+
+class ChoreHistory extends Equatable {
   final String id;
   final String choreId;
   final String familyId;
@@ -11,7 +13,7 @@ class ChoreHistory {
   final String? userName;
   final String? choreTitle;
 
-  ChoreHistory({
+  const ChoreHistory({
     required this.id,
     required this.choreId,
     required this.familyId,
@@ -22,6 +24,9 @@ class ChoreHistory {
     this.userName,
     this.choreTitle,
   });
+
+  @override
+  List<Object?> get props => [id, choreId, familyId, userId, action, createdAt, syncStatus, userName, choreTitle];
 
   factory ChoreHistory.fromJson(Map<String, dynamic> json) {
     return ChoreHistory(

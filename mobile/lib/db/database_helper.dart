@@ -20,7 +20,10 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 7,
+      version: 8,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
       onCreate: (db, version) async {
         for (final sql in allCreateStatements) {
           await db.execute(sql);
@@ -54,6 +57,11 @@ class DatabaseHelper {
         }
         if (oldVersion < 7) {
           for (final sql in migrationV7) {
+            try { await db.execute(sql); } catch (_) {}
+          }
+        }
+        if (oldVersion < 8) {
+          for (final sql in migrationV8) {
             try { await db.execute(sql); } catch (_) {}
           }
         }

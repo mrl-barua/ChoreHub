@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../config/api_config.dart';
 import '../config/theme.dart';
 import '../models/message.dart';
 import 'link_preview.dart';
@@ -80,7 +81,7 @@ class MessageBubble extends StatelessWidget {
           );
         }
       } else if (value == 'react') {
-        _showReactionPicker(context);
+        if (context.mounted) _showReactionPicker(context);
       } else if (value == 'delete') {
         onDelete?.call();
       }
@@ -285,9 +286,7 @@ class MessageBubble extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxHeight: 250, maxWidth: 250),
           child: Image.network(
-            message.imageUrl!.startsWith('http')
-                ? message.imageUrl!
-                : 'http://192.168.1.54:3000${message.imageUrl}', // Fallback to server URL
+            ApiConfig.imageUrl(message.imageUrl),
             fit: BoxFit.cover,
             loadingBuilder: (context, child, progress) {
               if (progress == null) return child;

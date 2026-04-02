@@ -24,28 +24,33 @@ class FamilyRepository {
 
   Future<List<FamilyMember>> getMembers(String familyId) async {
     final db = await _db.database;
-    final maps = await db.query('family_members', where: 'family_id = ?', whereArgs: [familyId]);
-    final members = maps.map((m) => FamilyMember.fromMap(m)).toList();
+    final maps = await db.rawQuery('''
+      SELECT fm.*, u.username, u.display_name, u.email
+      FROM family_members fm
+      LEFT JOIN users u ON fm.user_id = u.id
+      WHERE fm.family_id = ?
+    ''', [familyId]);
 
-    // Attach user info
-    final result = <FamilyMember>[];
-    for (final member in members) {
-      final userMaps = await db.query('users', where: 'id = ?', whereArgs: [member.userId]);
+    return maps.map((m) {
       User? user;
-      if (userMaps.isNotEmpty) {
-        user = User.fromMap(userMaps.first);
+      if (m['username'] != null) {
+        user = User(
+          id: m['user_id'] as String,
+          username: m['username'] as String,
+          displayName: m['display_name'] as String,
+          email: m['email'] as String?,
+        );
       }
-      result.add(FamilyMember(
-        id: member.id,
-        familyId: member.familyId,
-        userId: member.userId,
-        role: member.role,
-        joinedAt: member.joinedAt,
-        syncStatus: member.syncStatus,
+      return FamilyMember(
+        id: m['id'] as String,
+        familyId: m['family_id'] as String,
+        userId: m['user_id'] as String,
+        role: m['role'] as String? ?? 'member',
+        joinedAt: m['joined_at'] as String?,
+        syncStatus: m['sync_status'] as String? ?? 'pending',
         user: user,
-      ));
-    }
-    return result;
+      );
+    }).toList();
   }
 
   Future<void> insertMember(FamilyMember member) async {

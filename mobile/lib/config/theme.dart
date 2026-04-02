@@ -24,8 +24,11 @@ class AppTheme {
   };
 
   // Dark surfaces
-  static const Color _bg = Color(0xFF0F0F14);
-  static const Color _card = Color(0xFF1C1C24);
+  static const Color bg = Color(0xFF0F0F14);
+  static const Color surface = Color(0xFF1C1C24);
+  static const Color surfaceVariant = Color(0xFF2A2A40);
+  static const Color _bg = bg;
+  static const Color _card = surface;
   static const Color _cardLight = Color(0xFF252530);
 
   static ThemeData get darkTheme {

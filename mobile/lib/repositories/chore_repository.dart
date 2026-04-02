@@ -55,6 +55,16 @@ class ChoreRepository {
     await db.update('chores', {'sync_status': 'synced'}, where: 'id = ?', whereArgs: [id]);
   }
 
+  Future<int> getAssignedCount(String familyId, String userId) async {
+    final db = await _db.database;
+    return Sqflite.firstIntValue(
+      await db.rawQuery(
+        'SELECT COUNT(*) FROM chores WHERE family_id = ? AND assigned_to = ?',
+        [familyId, userId],
+      ),
+    ) ?? 0;
+  }
+
   Future<Map<String, int>> getStats(String familyId) async {
     final db = await _db.database;
     final today = DateTime.now().toIso8601String().substring(0, 10);
