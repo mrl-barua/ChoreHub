@@ -142,6 +142,10 @@ class ChoreCard extends StatelessWidget {
                                 child: Text('Declined', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.accentRed)),
                               ),
                             ],
+                            if (chore.recurrence != null) ...[
+                              const SizedBox(width: 6),
+                              Icon(Icons.repeat_rounded, size: 12, color: AppTheme.accentBlue),
+                            ],
                           ],
                         ),
                       ],

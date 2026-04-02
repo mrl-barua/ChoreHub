@@ -25,7 +25,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   List<Chore> _myChores = [];
   List<Chore> _pendingAssignments = [];
   List<ChoreHistory> _recentActivity = [];
+  List<Chore> _upcomingDue = [];
+  List<Chore> _doneToday = [];
   int _streak = 0;
+
+  int _daysUntilDue(String? dueDate) {
+    if (dueDate == null) return 999;
+    try {
+      final due = DateTime.parse(dueDate);
+      final now = DateTime.now();
+      return DateTime(due.year, due.month, due.day).difference(DateTime(now.year, now.month, now.day)).inDays;
+    } catch (_) {
+      return 999;
+    }
+  }
 
   @override
   void initState() {
@@ -56,11 +69,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final pending = allChores.where((c) => c.assignedTo == user.id && c.isPendingAcceptance).toList();
       final streak = analytics['currentStreak'] as int? ?? 0;
 
+      // Upcoming due (within 3 days, not done)
+      final now = DateTime.now();
+      final upcoming = allChores.where((c) {
+        if (c.dueDate == null || c.isDone) return false;
+        try {
+          final due = DateTime.parse(c.dueDate!);
+          final days = DateTime(due.year, due.month, due.day).difference(DateTime(now.year, now.month, now.day)).inDays;
+          return days >= 0 && days <= 3;
+        } catch (_) { return false; }
+      }).toList()..sort((a, b) => (a.dueDate ?? '').compareTo(b.dueDate ?? ''));
+
+      // Done today
+      final todayStr = now.toIso8601String().substring(0, 10);
+      final doneToday = allChores.where((c) => c.isDone && c.updatedAt != null && c.updatedAt!.startsWith(todayStr)).toList();
+
       if (mounted) {
         setState(() {
           _myChores = myChores;
           _pendingAssignments = pending;
           _recentActivity = history;
+          _upcomingDue = upcoming;
+          _doneToday = doneToday;
           _streak = streak;
         });
       }
@@ -283,9 +313,79 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 20),
               ],
 
+              // Upcoming due (next 3 days)
+              if (_upcomingDue.isNotEmpty) ...[
+                AnimatedListItem(
+                  index: 8,
+                  child: const Text('Due Soon', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(height: 8),
+                ...(_upcomingDue.take(3).toList().asMap().entries.map((entry) {
+                  final chore = entry.value;
+                  final daysLeft = _daysUntilDue(chore.dueDate);
+                  return AnimatedListItem(
+                    index: entry.key + 8,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1C24),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: daysLeft == 0 ? AppTheme.accentRed.withValues(alpha: 0.4) : AppTheme.accentOrange.withValues(alpha: 0.2)),
+                      ),
+                      child: GestureDetector(
+                        onTap: () => context.push('/chores/${chore.id}'),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: daysLeft == 0 ? AppTheme.accentRed.withValues(alpha: 0.15) : AppTheme.accentOrange.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                daysLeft == 0 ? 'Today' : daysLeft == 1 ? 'Tomorrow' : '${daysLeft}d',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: daysLeft == 0 ? AppTheme.accentRed : AppTheme.accentOrange),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(child: Text(chore.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                            Icon(Icons.chevron_right_rounded, size: 18, color: Colors.grey.shade600),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                })),
+                const SizedBox(height: 16),
+              ],
+
+              // Done today celebration
+              if (_doneToday.isNotEmpty) ...[
+                AnimatedListItem(
+                  index: 9,
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentGreen.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.celebration_rounded, color: AppTheme.accentGreen, size: 22),
+                        const SizedBox(width: 10),
+                        Text('${_doneToday.length} chore${_doneToday.length > 1 ? 's' : ''} done today!',
+                            style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.accentGreen)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // Recent chores
               AnimatedListItem(
-                index: 9,
+                index: 10,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

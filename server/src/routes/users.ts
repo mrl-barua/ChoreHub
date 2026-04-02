@@ -36,6 +36,118 @@ router.get('/search', authenticate, async (req: AuthRequest, res: Response): Pro
   }
 });
 
+// Update profile
+router.patch('/me', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { displayName, avatarUrl } = req.body;
+    const data: any = {};
+    if (displayName) data.displayName = displayName;
+    if (avatarUrl !== undefined) data.avatarUrl = avatarUrl;
+
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data,
+      select: { id: true, username: true, displayName: true, email: true },
+    });
+    res.json(user);
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Change password
+router.post('/me/change-password', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword || newPassword.length < 6) {
+      res.status(400).json({ error: 'New password must be at least 6 characters' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+
+    const bcrypt = require('bcryptjs');
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) { res.status(401).json({ error: 'Current password is incorrect' }); return; }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id: req.userId }, data: { password: hashed } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get personal stats
+router.get('/me/stats', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.userId!;
+
+    // Get all families user belongs to
+    const memberships = await prisma.familyMember.findMany({
+      where: { userId },
+      select: { familyId: true },
+    });
+    const familyIds = memberships.map(m => m.familyId);
+
+    const [totalCompleted, totalAssigned, totalCreated] = await Promise.all([
+      prisma.choreHistory.count({ where: { userId, action: 'completed' } }),
+      prisma.chore.count({ where: { assignedTo: userId, familyId: { in: familyIds } } }),
+      prisma.chore.count({ where: { createdBy: userId, familyId: { in: familyIds } } }),
+    ]);
+
+    // Category breakdown for this user
+    const completedHistory = await prisma.choreHistory.findMany({
+      where: { userId, action: 'completed' },
+      select: { choreId: true },
+    });
+    const choreIds = completedHistory.map(h => h.choreId);
+    const completedChores = choreIds.length > 0
+      ? await prisma.chore.findMany({
+          where: { id: { in: choreIds } },
+          select: { category: true },
+        })
+      : [];
+    const categoryCount: Record<string, number> = {};
+    completedChores.forEach((c: any) => {
+      categoryCount[c.category] = (categoryCount[c.category] || 0) + 1;
+    });
+    const topCategory = Object.entries(categoryCount).sort(([, a], [, b]) => b - a)[0];
+
+    // Streak
+    const userHistory = await prisma.choreHistory.findMany({
+      where: { userId, action: 'completed' },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+    const uniqueDays = Array.from(new Set(userHistory.map((h: any) => h.createdAt.toISOString().substring(0, 10)))) as string[];
+    let streak = 0;
+    let checkDate = new Date();
+    for (const dayStr of uniqueDays) {
+      const day = new Date(dayStr);
+      const diffMs = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate()).getTime()
+                   - new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+      const diffDays = Math.round(diffMs / 86400000);
+      if (diffDays <= 1) { streak++; checkDate = day; } else { break; }
+    }
+
+    res.json({
+      totalCompleted,
+      totalAssigned,
+      totalCreated,
+      currentStreak: streak,
+      topCategory: topCategory ? topCategory[0] : null,
+      topCategoryCount: topCategory ? topCategory[1] : 0,
+    });
+  } catch (error) {
+    console.error('Stats error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = await prisma.user.findUnique({

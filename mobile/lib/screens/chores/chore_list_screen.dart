@@ -59,6 +59,11 @@ class _ChoreListScreenState extends ConsumerState<ChoreListScreen> {
             : const Text('Chores'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.calendar_month_rounded),
+            onPressed: () => context.push('/chores/calendar'),
+            tooltip: 'Calendar View',
+          ),
+          IconButton(
             icon: Icon(_showSearch ? Icons.close_rounded : Icons.search_rounded),
             onPressed: () {
               setState(() {
@@ -132,12 +137,43 @@ class _ChoreListScreenState extends ConsumerState<ChoreListScreen> {
                         final assignee = family.members.where((m) => m.userId == chore.assignedTo).firstOrNull;
                         return AnimatedListItem(
                           index: index,
-                          child: ChoreCard(
-                            chore: chore,
-                            assigneeName: assignee?.user?.displayName,
-                            onToggle: () => ref.read(choreProvider.notifier).toggleStatus(chore.id),
-                            onTap: () => context.push('/chores/${chore.id}'),
-                            onDismissed: () => ref.read(choreProvider.notifier).deleteChore(chore.id),
+                          child: Dismissible(
+                            key: ValueKey('complete_${chore.id}'),
+                            direction: DismissDirection.endToStart,
+                            confirmDismiss: (direction) async {
+                              await ref.read(choreProvider.notifier).toggleStatus(chore.id);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(chore.isDone ? 'Marked as pending' : 'Marked as done'),
+                                    action: SnackBarAction(
+                                      label: 'Undo',
+                                      onPressed: () => ref.read(choreProvider.notifier).toggleStatus(chore.id),
+                                    ),
+                                  ),
+                                );
+                              }
+                              return false;
+                            },
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 24),
+                              margin: const EdgeInsets.only(bottom: 8),
+                              decoration: BoxDecoration(
+                                color: chore.isDone ? Colors.orange : Colors.green,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Icon(
+                                chore.isDone ? Icons.undo_rounded : Icons.check_rounded,
+                                color: Colors.white,
+                              ),
+                            ),
+                            child: ChoreCard(
+                              chore: chore,
+                              assigneeName: assignee?.user?.displayName,
+                              onToggle: () => ref.read(choreProvider.notifier).toggleStatus(chore.id),
+                              onTap: () => context.push('/chores/${chore.id}'),
+                            ),
                           ),
                         );
                       },

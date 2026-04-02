@@ -16,6 +16,7 @@ import 'screens/family/create_family_screen.dart';
 import 'screens/family/invite_screen.dart';
 import 'screens/family/invitations_screen.dart';
 import 'screens/analytics/analytics_screen.dart';
+import 'screens/chores/calendar_screen.dart';
 import 'screens/chat/chat_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'widgets/shell_screen.dart';
@@ -123,6 +124,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/analytics',
         pageBuilder: (_, state) => _slideUpPage(const AnalyticsScreen(), state),
+      ),
+      GoRoute(
+        path: '/chores/calendar',
+        pageBuilder: (_, state) => _slideUpPage(const CalendarScreen(), state),
       ),
       GoRoute(
         path: '/chores/:id/edit',
