@@ -54,11 +54,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels <= 50) {
+    // With reverse: true, scrolling UP (toward older) increases pixels
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 50) {
       ref.read(messageProvider.notifier).loadMore();
     }
-    final atBottom = _scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 100;
+    // With reverse: true, "at bottom" (newest) means pixels near 0
+    final atBottom = _scrollController.position.pixels <= 100;
     if (_isAtBottom != atBottom || _showScrollToBottom == atBottom) {
       setState(() {
         _isAtBottom = atBottom;
@@ -118,7 +120,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        0, // With reverse: true, 0 is the newest message (bottom)
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
       );
@@ -378,13 +380,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           )
                         : ListView.builder(
                             controller: _scrollController,
+                            reverse: true,
                             padding: const EdgeInsets.only(top: 12, bottom: 8),
                             itemCount: messages.messages.length,
                             itemBuilder: (context, index) {
-                              final msg = messages.messages[index];
+                              // reverse: true flips the list, so index 0 = newest
+                              final reversedIndex = messages.messages.length - 1 - index;
+                              final msg = messages.messages[reversedIndex];
                               final isMe = msg.userId == currentUser?.id;
-                              final showName = index == 0 || messages.messages[index - 1].userId != msg.userId;
-                              final showDateSeparator = _needsDateSeparator(index, messages.messages);
+                              final showName = reversedIndex == 0 || messages.messages[reversedIndex - 1].userId != msg.userId;
+                              final showDateSeparator = _needsDateSeparator(reversedIndex, messages.messages);
 
                               return Column(
                                 children: [
