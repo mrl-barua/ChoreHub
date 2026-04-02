@@ -15,10 +15,16 @@ class SocketService {
   final StreamController<Message> _messageController = StreamController<Message>.broadcast();
   final StreamController<String> _typingController = StreamController<String>.broadcast();
   final StreamController<String> _stopTypingController = StreamController<String>.broadcast();
+  final StreamController<Map<String, dynamic>> _reactionController = StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _readReceiptController = StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<String> _deleteController = StreamController<String>.broadcast();
 
   Stream<Message> get onMessage => _messageController.stream;
   Stream<String> get onTyping => _typingController.stream;
   Stream<String> get onStopTyping => _stopTypingController.stream;
+  Stream<Map<String, dynamic>> get onReaction => _reactionController.stream;
+  Stream<Map<String, dynamic>> get onReadReceipt => _readReceiptController.stream;
+  Stream<String> get onDelete => _deleteController.stream;
 
   bool get isConnected => _socket?.connected ?? false;
 
@@ -28,7 +34,6 @@ class SocketService {
     final token = await _storage.read(key: 'access_token');
     if (token == null) return;
 
-    // Extract base URL without /api path
     final baseUrl = ApiConfig.baseUrl.replaceAll('/api', '');
 
     _socket = io.io(baseUrl, io.OptionBuilder()
@@ -55,6 +60,18 @@ class SocketService {
       _stopTypingController.add(data['userId'] as String);
     });
 
+    _socket!.on('reaction_updated', (data) {
+      _reactionController.add(data as Map<String, dynamic>);
+    });
+
+    _socket!.on('messages_read', (data) {
+      _readReceiptController.add(data as Map<String, dynamic>);
+    });
+
+    _socket!.on('message_deleted', (data) {
+      _deleteController.add(data['messageId'] as String);
+    });
+
     _socket!.onDisconnect((_) {
       print('Socket.IO disconnected');
     });
@@ -64,13 +81,46 @@ class SocketService {
     });
   }
 
-  void sendMessage({required String id, required String familyId, required String text, String? choreId, String? mentions}) {
+  void sendMessage({
+    required String id,
+    required String familyId,
+    required String text,
+    String? choreId,
+    String? mentions,
+    String? replyToId,
+    String? imageUrl,
+  }) {
     _socket?.emit('send_message', {
       'id': id,
       'familyId': familyId,
       'text': text,
       if (choreId != null) 'choreId': choreId,
       if (mentions != null) 'mentions': mentions,
+      if (replyToId != null) 'replyToId': replyToId,
+      if (imageUrl != null) 'imageUrl': imageUrl,
+    });
+  }
+
+  void toggleReaction({required String messageId, required String familyId, required String emoji}) {
+    _socket?.emit('toggle_reaction', {
+      'messageId': messageId,
+      'familyId': familyId,
+      'emoji': emoji,
+    });
+  }
+
+  void markRead({required List<String> messageIds, required String familyId}) {
+    if (messageIds.isEmpty) return;
+    _socket?.emit('mark_read', {
+      'messageIds': messageIds,
+      'familyId': familyId,
+    });
+  }
+
+  void deleteMessage({required String messageId, required String familyId}) {
+    _socket?.emit('delete_message', {
+      'messageId': messageId,
+      'familyId': familyId,
     });
   }
 
@@ -92,5 +142,8 @@ class SocketService {
     _messageController.close();
     _typingController.close();
     _stopTypingController.close();
+    _reactionController.close();
+    _readReceiptController.close();
+    _deleteController.close();
   }
 }

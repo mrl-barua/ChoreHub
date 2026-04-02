@@ -46,6 +46,8 @@ dependencies:
   intl: ^0.20.2
   fl_chart: 0.70.2
   socket_io_client: ^3.1.4
+  image_picker: ^1.2.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

@@ -104,8 +104,22 @@ const String createMessagesTable = '''
     text TEXT NOT NULL,
     chore_id TEXT,
     mentions TEXT,
+    reply_to_id TEXT,
+    image_url TEXT,
+    reactions TEXT,
+    deleted_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     sync_status TEXT NOT NULL DEFAULT 'synced'
+  )
+''';
+
+const String createMessageReadReceiptsTable = '''
+  CREATE TABLE IF NOT EXISTS message_read_receipts (
+    id TEXT PRIMARY KEY,
+    message_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    read_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(message_id, user_id)
   )
 ''';
 
@@ -118,6 +132,15 @@ const List<String> migrationV5 = [
 const List<String> migrationV6 = [
   "ALTER TABLE messages ADD COLUMN chore_id TEXT",
   "ALTER TABLE messages ADD COLUMN mentions TEXT",
+];
+
+// Migration from v6 to v7: add reply_to, image_url, reactions, deleted_at to messages + read receipts table
+const List<String> migrationV7 = [
+  "ALTER TABLE messages ADD COLUMN reply_to_id TEXT",
+  "ALTER TABLE messages ADD COLUMN image_url TEXT",
+  "ALTER TABLE messages ADD COLUMN reactions TEXT",
+  "ALTER TABLE messages ADD COLUMN deleted_at TEXT",
+  createMessageReadReceiptsTable,
 ];
 
 const String createSyncMetaTable = '''
@@ -135,5 +158,6 @@ const List<String> allCreateStatements = [
   createChoresTable,
   createChoreHistoryTable,
   createMessagesTable,
+  createMessageReadReceiptsTable,
   createSyncMetaTable,
 ];

@@ -20,7 +20,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: (db, version) async {
         for (final sql in allCreateStatements) {
           await db.execute(sql);
@@ -49,6 +49,11 @@ class DatabaseHelper {
         }
         if (oldVersion < 6) {
           for (final sql in migrationV6) {
+            try { await db.execute(sql); } catch (_) {}
+          }
+        }
+        if (oldVersion < 7) {
+          for (final sql in migrationV7) {
             try { await db.execute(sql); } catch (_) {}
           }
         }

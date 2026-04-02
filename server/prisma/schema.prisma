@@ -91,13 +91,27 @@ model ChoreHistory {
 }
 
 model Message {
-  id        String   @id @default(uuid())
-  familyId  String   @map("family_id")
-  userId    String   @map("user_id")
+  id        String    @id @default(uuid())
+  familyId  String    @map("family_id")
+  userId    String    @map("user_id")
   text      String
-  choreId   String?  @map("chore_id")
+  choreId   String?   @map("chore_id")
   mentions  String?
-  createdAt DateTime @default(now()) @map("created_at")
+  replyToId String?   @map("reply_to_id")
+  imageUrl  String?   @map("image_url")
+  reactions String?   // JSON: {"emoji": ["userId1","userId2"]}
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   @@map("messages")
+}
+
+model MessageReadReceipt {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  readAt    DateTime @default(now()) @map("read_at")
+
+  @@unique([messageId, userId])
+  @@map("message_read_receipts")
 }

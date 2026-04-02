@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import path from 'path';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
@@ -20,6 +21,9 @@ const app = express();
 const httpServer = createServer(app);
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
+
+// Serve uploaded images
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Socket.IO setup
 const io = new Server(httpServer, {
@@ -60,7 +64,7 @@ io.on('connection', async (socket) => {
   }
 
   // Handle sending messages
-  socket.on('send_message', async (data: { id: string; familyId: string; text: string; choreId?: string; mentions?: string }) => {
+  socket.on('send_message', async (data: { id: string; familyId: string; text: string; choreId?: string; mentions?: string; replyToId?: string; imageUrl?: string }) => {
     try {
       const member = await prisma.familyMember.findUnique({
         where: { familyId_userId: { familyId: data.familyId, userId } },
@@ -80,6 +84,8 @@ io.on('connection', async (socket) => {
           text: data.text,
           choreId: data.choreId || null,
           mentions: data.mentions || null,
+          replyToId: data.replyToId || null,
+          imageUrl: data.imageUrl || null,
         },
       });
 
@@ -93,6 +99,26 @@ io.on('connection', async (socket) => {
         choreData = chore;
       }
 
+      // If reply, fetch the original message
+      let replyTo = null;
+      if (message.replyToId) {
+        const original = await prisma.message.findUnique({
+          where: { id: message.replyToId },
+        });
+        if (original) {
+          const originalUser = await prisma.user.findUnique({
+            where: { id: original.userId },
+            select: { displayName: true },
+          });
+          replyTo = {
+            id: original.id,
+            text: original.text,
+            userId: original.userId,
+            userName: originalUser?.displayName || 'Unknown',
+          };
+        }
+      }
+
       io.to(`family:${data.familyId}`).emit('new_message', {
         id: message.id,
         familyId: message.familyId,
@@ -100,13 +126,94 @@ io.on('connection', async (socket) => {
         text: message.text,
         choreId: message.choreId,
         mentions: message.mentions,
+        replyToId: message.replyToId,
+        imageUrl: message.imageUrl,
+        reactions: message.reactions,
         chore: choreData,
+        replyTo,
         createdAt: message.createdAt.toISOString(),
         userName: user?.displayName || 'Unknown',
       });
     } catch (err) {
       console.error('Error sending message:', err);
       socket.emit('message_error', { id: data.id, error: 'Failed to send message' });
+    }
+  });
+
+  // Handle reactions
+  socket.on('toggle_reaction', async (data: { messageId: string; familyId: string; emoji: string }) => {
+    try {
+      const message = await prisma.message.findUnique({ where: { id: data.messageId } });
+      if (!message) return;
+
+      let reactions: Record<string, string[]> = {};
+      if (message.reactions) {
+        try { reactions = JSON.parse(message.reactions); } catch {}
+      }
+
+      if (!reactions[data.emoji]) {
+        reactions[data.emoji] = [];
+      }
+
+      const idx = reactions[data.emoji].indexOf(userId);
+      if (idx >= 0) {
+        reactions[data.emoji].splice(idx, 1);
+        if (reactions[data.emoji].length === 0) delete reactions[data.emoji];
+      } else {
+        reactions[data.emoji].push(userId);
+      }
+
+      const reactionsStr = Object.keys(reactions).length > 0 ? JSON.stringify(reactions) : null;
+      await prisma.message.update({
+        where: { id: data.messageId },
+        data: { reactions: reactionsStr },
+      });
+
+      io.to(`family:${data.familyId}`).emit('reaction_updated', {
+        messageId: data.messageId,
+        reactions: reactionsStr,
+      });
+    } catch (err) {
+      console.error('Error toggling reaction:', err);
+    }
+  });
+
+  // Handle read receipts
+  socket.on('mark_read', async (data: { messageIds: string[]; familyId: string }) => {
+    try {
+      for (const messageId of data.messageIds) {
+        await prisma.messageReadReceipt.upsert({
+          where: { messageId_userId: { messageId, userId } },
+          create: { messageId, userId },
+          update: { readAt: new Date() },
+        });
+      }
+
+      io.to(`family:${data.familyId}`).emit('messages_read', {
+        userId,
+        messageIds: data.messageIds,
+      });
+    } catch (err) {
+      console.error('Error marking read:', err);
+    }
+  });
+
+  // Handle delete message
+  socket.on('delete_message', async (data: { messageId: string; familyId: string }) => {
+    try {
+      const message = await prisma.message.findUnique({ where: { id: data.messageId } });
+      if (!message || message.userId !== userId) return;
+
+      await prisma.message.update({
+        where: { id: data.messageId },
+        data: { deletedAt: new Date() },
+      });
+
+      io.to(`family:${data.familyId}`).emit('message_deleted', {
+        messageId: data.messageId,
+      });
+    } catch (err) {
+      console.error('Error deleting message:', err);
     }
   });
 

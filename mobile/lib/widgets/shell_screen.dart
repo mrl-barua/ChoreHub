@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/connectivity_provider.dart';
+import '../providers/message_provider.dart';
 
 class ShellScreen extends ConsumerWidget {
   final Widget child;
@@ -37,7 +38,7 @@ class ShellScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isOnline = ref.watch(isOnlineProvider);
     final currentIndex = _currentIndex(context);
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final unreadCount = ref.watch(messageProvider).unreadCount;
 
     return Scaffold(
       body: Column(
@@ -83,16 +84,46 @@ class ShellScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: List.generate(5, (index) {
                 final isSelected = currentIndex == index;
+                final isChatTab = index == 2;
+
                 return GestureDetector(
                   onTap: () => context.go(_routes[index]),
                   behavior: HitTestBehavior.opaque,
                   child: SizedBox(
                     width: 48,
                     height: 48,
-                    child: Icon(
-                      isSelected ? _icons[index] : _outlinedIcons[index],
-                      size: 22,
-                      color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.35),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Icon(
+                          isSelected ? _icons[index] : _outlinedIcons[index],
+                          size: 22,
+                          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.35),
+                        ),
+                        // Unread badge on chat tab
+                        if (isChatTab && unreadCount > 0 && !isSelected)
+                          Positioned(
+                            top: 6,
+                            right: 4,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6C63FF),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              constraints: const BoxConstraints(minWidth: 16, minHeight: 14),
+                              child: Text(
+                                unreadCount > 99 ? '99+' : '$unreadCount',
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 );
