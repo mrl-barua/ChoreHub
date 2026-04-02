@@ -5,10 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/message.dart';
-import '../repositories/chore_repository.dart';
-import '../repositories/message_repository.dart';
 import '../services/api_client.dart';
-import '../services/connectivity_service.dart';
 import '../services/socket_service.dart';
 import 'auth_provider.dart';
 import 'family_provider.dart';
@@ -21,6 +18,7 @@ class MessageState {
   final int unreadCount;
   final String? searchQuery;
   final bool isSearching;
+  final String? error;
 
   MessageState({
     this.messages = const [],
@@ -30,12 +28,11 @@ class MessageState {
     this.unreadCount = 0,
     this.searchQuery,
     this.isSearching = false,
+    this.error,
   });
 }
 
 class MessageNotifier extends Notifier<MessageState> {
-  final MessageRepository _repo = MessageRepository();
-  final ChoreRepository _choreRepo = ChoreRepository();
   final SocketService _socket = SocketService();
   final ApiClient _apiClient = ApiClient();
   StreamSubscription<Message>? _messageSub;
@@ -64,7 +61,7 @@ class MessageNotifier extends Notifier<MessageState> {
   Future<void> _init() async {
     await _socket.connect();
 
-    // Watch family provider — reload messages when family changes
+    // Reload messages when family changes
     ref.listen(familyProvider, (prev, next) {
       final prevFamily = prev?.currentFamily?.id;
       final nextFamily = next.currentFamily?.id;
@@ -73,17 +70,14 @@ class MessageNotifier extends Notifier<MessageState> {
       }
     });
 
-    // Listen for incoming messages
-    _messageSub = _socket.onMessage.listen((message) async {
-      await _repo.insertMessage(message);
-      final enriched = await _enrichMessage(message);
+    // Listen for incoming messages via socket (real-time)
+    _messageSub = _socket.onMessage.listen((message) {
       final current = state.messages;
-      if (!current.any((m) => m.id == enriched.id)) {
-        // Update unread count if message is from someone else
+      if (!current.any((m) => m.id == message.id)) {
         final user = ref.read(authProvider).user;
-        final newUnread = (enriched.userId != user?.id) ? state.unreadCount + 1 : state.unreadCount;
+        final newUnread = (message.userId != user?.id) ? state.unreadCount + 1 : state.unreadCount;
         state = MessageState(
-          messages: [...current, enriched],
+          messages: [...current, message],
           typingUserIds: state.typingUserIds,
           hasMore: state.hasMore,
           unreadCount: newUnread,
@@ -91,7 +85,6 @@ class MessageNotifier extends Notifier<MessageState> {
       }
     });
 
-    // Listen for typing
     _typingSub = _socket.onTyping.listen((userId) {
       final user = ref.read(authProvider).user;
       if (userId == user?.id) return;
@@ -113,11 +106,9 @@ class MessageNotifier extends Notifier<MessageState> {
       );
     });
 
-    // Listen for reactions
-    _reactionSub = _socket.onReaction.listen((data) async {
+    _reactionSub = _socket.onReaction.listen((data) {
       final messageId = data['messageId'] as String;
       final reactions = data['reactions'] as String?;
-      await _repo.updateReactions(messageId, reactions);
       final msgs = state.messages.map((m) {
         if (m.id == messageId) return m.copyWith(reactions: reactions);
         return m;
@@ -130,13 +121,9 @@ class MessageNotifier extends Notifier<MessageState> {
       );
     });
 
-    // Listen for read receipts
-    _readReceiptSub = _socket.onReadReceipt.listen((data) async {
+    _readReceiptSub = _socket.onReadReceipt.listen((data) {
       final userId = data['userId'] as String;
       final messageIds = (data['messageIds'] as List).map((e) => e as String).toList();
-      for (final msgId in messageIds) {
-        await _repo.upsertReadReceipt(msgId, userId);
-      }
       final msgs = state.messages.map((m) {
         if (messageIds.contains(m.id) && !m.readBy.contains(userId)) {
           return m.copyWith(readBy: [...m.readBy, userId]);
@@ -151,9 +138,7 @@ class MessageNotifier extends Notifier<MessageState> {
       );
     });
 
-    // Listen for deletes
-    _deleteSub = _socket.onDelete.listen((messageId) async {
-      await _repo.softDelete(messageId);
+    _deleteSub = _socket.onDelete.listen((messageId) {
       final msgs = state.messages.where((m) => m.id != messageId).toList();
       state = MessageState(
         messages: msgs,
@@ -166,53 +151,36 @@ class MessageNotifier extends Notifier<MessageState> {
     await loadMessages();
   }
 
+  /// Load messages directly from server — server is the source of truth
   Future<void> loadMessages() async {
     final family = ref.read(familyProvider).currentFamily;
     if (family == null) {
-      // Family not loaded yet — ref.listen will trigger loadMessages when it arrives
+      debugPrint('[Messages] family is null, waiting...');
       return;
     }
 
+    debugPrint('[Messages] Loading from server for family: ${family.id}');
     state = MessageState(isLoading: true);
 
     try {
-      // Always fetch from server to get latest messages (this is the main source of truth)
-      if (ConnectivityService().isOnline) {
-        try {
-          final response = await _apiClient.dio.get('/messages', queryParameters: {
-            'familyId': family.id,
-            'limit': 50,
-          });
-          final serverMessages = (response.data as List).map((m) => Message.fromJson(m)).toList();
-          for (final msg in serverMessages) {
-            await _repo.insertMessage(msg);
-          }
-          debugPrint('Loaded ${serverMessages.length} messages from server for family ${family.id}');
-        } catch (e) {
-          debugPrint('Failed to load messages from server: $e');
-        }
-      }
+      final response = await _apiClient.dio.get('/messages', queryParameters: {
+        'familyId': family.id,
+        'limit': 50,
+      });
+      final messages = (response.data as List).map((m) => Message.fromJson(m)).toList();
+      debugPrint('[Messages] Server returned ${messages.length} messages');
 
-      // Load from local DB (includes what we just saved from server)
-      final messages = await _repo.getMessages(family.id, limit: 50);
-      final enriched = await _enrichMessages(messages);
-
-      // Load unread count (wrapped separately — table might not exist on old DBs)
-      int unread = 0;
-      try {
-        final user = ref.read(authProvider).user;
-        if (user != null) {
-          unread = await _repo.getUnreadCount(family.id, user.id);
-        }
-      } catch (_) {}
-
-      state = MessageState(messages: enriched, hasMore: messages.length >= 50, unreadCount: unread);
+      state = MessageState(
+        messages: messages,
+        hasMore: messages.length >= 50,
+      );
     } catch (e) {
-      debugPrint('loadMessages error: $e');
-      state = MessageState();
+      debugPrint('[Messages] Server fetch failed: $e');
+      state = MessageState(error: 'Could not load messages. Pull to retry.');
     }
   }
 
+  /// Load older messages (pagination)
   Future<void> loadMore() async {
     if (state.isLoading || !state.hasMore || state.messages.isEmpty) return;
 
@@ -221,40 +189,36 @@ class MessageNotifier extends Notifier<MessageState> {
 
     final oldest = state.messages.first.createdAt;
 
-    if (ConnectivityService().isOnline) {
-      try {
-        final response = await _apiClient.dio.get('/messages', queryParameters: {
-          'familyId': family.id,
-          'before': oldest,
-          'limit': 30,
-        });
-        final olderMessages = (response.data as List).map((m) => Message.fromJson(m)).toList();
-        for (final msg in olderMessages) {
-          await _repo.insertMessage(msg);
-        }
-      } catch (_) {}
-    }
+    try {
+      final response = await _apiClient.dio.get('/messages', queryParameters: {
+        'familyId': family.id,
+        'before': oldest,
+        'limit': 30,
+      });
+      final olderMessages = (response.data as List).map((m) => Message.fromJson(m)).toList();
 
-    final olderLocal = await _repo.getMessages(family.id, limit: 30, before: oldest);
-    if (olderLocal.isEmpty) {
+      if (olderMessages.isEmpty) {
+        state = MessageState(
+          messages: state.messages,
+          typingUserIds: state.typingUserIds,
+          hasMore: false,
+          unreadCount: state.unreadCount,
+        );
+        return;
+      }
+
       state = MessageState(
-        messages: state.messages,
+        messages: [...olderMessages, ...state.messages],
         typingUserIds: state.typingUserIds,
-        hasMore: false,
+        hasMore: olderMessages.length >= 30,
         unreadCount: state.unreadCount,
       );
-      return;
+    } catch (e) {
+      debugPrint('[Messages] Load more failed: $e');
     }
-
-    final enriched = await _enrichMessages(olderLocal);
-    state = MessageState(
-      messages: [...enriched, ...state.messages],
-      typingUserIds: state.typingUserIds,
-      hasMore: olderLocal.length >= 30,
-      unreadCount: state.unreadCount,
-    );
   }
 
+  /// Send message — socket for real-time, REST as backup
   Future<void> sendMessage(String text, {String? choreId, List<String>? mentionUserIds, String? replyToId, String? imageUrl}) async {
     final user = ref.read(authProvider).user;
     final family = ref.read(familyProvider).currentFamily;
@@ -265,7 +229,7 @@ class MessageNotifier extends Notifier<MessageState> {
     final now = DateTime.now().toIso8601String();
     final mentionsStr = mentionUserIds != null && mentionUserIds.isNotEmpty ? mentionUserIds.join(',') : null;
 
-    // Build replyTo from existing message
+    // Build replyTo from existing message for optimistic display
     ReplyTo? replyTo;
     if (replyToId != null) {
       final original = state.messages.where((m) => m.id == replyToId).firstOrNull;
@@ -274,13 +238,14 @@ class MessageNotifier extends Notifier<MessageState> {
       }
     }
 
+    final msgText = text.trim().isEmpty ? (imageUrl != null ? 'Sent a photo' : '') : text.trim();
+
     final message = Message(
       id: id,
       familyId: family.id,
       userId: user.id,
-      text: text.trim().isEmpty ? (imageUrl != null ? 'Sent a photo' : '') : text.trim(),
+      text: msgText,
       createdAt: now,
-      syncStatus: 'pending',
       userName: user.displayName,
       choreId: choreId,
       mentions: mentionsStr,
@@ -289,8 +254,7 @@ class MessageNotifier extends Notifier<MessageState> {
       replyTo: replyTo,
     );
 
-    await _repo.insertMessage(message);
-
+    // Optimistic update — show immediately
     state = MessageState(
       messages: [...state.messages, message],
       typingUserIds: state.typingUserIds,
@@ -298,10 +262,11 @@ class MessageNotifier extends Notifier<MessageState> {
       unreadCount: state.unreadCount,
     );
 
+    // Send via socket (real-time delivery to others)
     _socket.sendMessage(
       id: id,
       familyId: family.id,
-      text: message.text,
+      text: msgText,
       choreId: choreId,
       mentions: mentionsStr,
       replyToId: replyToId,
@@ -309,6 +274,22 @@ class MessageNotifier extends Notifier<MessageState> {
     );
 
     _socket.sendStopTyping(family.id);
+
+    // Also send via REST as backup to guarantee server persistence
+    try {
+      await _apiClient.dio.post('/messages/send', data: {
+        'id': id,
+        'familyId': family.id,
+        'text': msgText,
+        'choreId': choreId,
+        'mentions': mentionsStr,
+        'replyToId': replyToId,
+        'imageUrl': imageUrl,
+        'createdAt': now,
+      });
+    } catch (e) {
+      debugPrint('[Messages] REST backup send failed: $e');
+    }
   }
 
   Future<String?> uploadImage(File file) async {
@@ -319,7 +300,7 @@ class MessageNotifier extends Notifier<MessageState> {
       final response = await _apiClient.dio.post('/messages/upload', data: formData);
       return response.data['imageUrl'] as String?;
     } catch (e) {
-      debugPrint('Image upload error: $e');
+      debugPrint('[Messages] Image upload error: $e');
       return null;
     }
   }
@@ -335,7 +316,6 @@ class MessageNotifier extends Notifier<MessageState> {
     final user = ref.read(authProvider).user;
     if (family == null || user == null) return;
 
-    // Filter to only messages not sent by current user
     final toMark = messageIds.where((id) {
       final msg = state.messages.where((m) => m.id == id).firstOrNull;
       return msg != null && msg.userId != user.id && !msg.readBy.contains(user.id);
@@ -345,7 +325,6 @@ class MessageNotifier extends Notifier<MessageState> {
 
     _socket.markRead(messageIds: toMark, familyId: family.id);
 
-    // Optimistically update unread count
     final newUnread = (state.unreadCount - toMark.length).clamp(0, state.unreadCount);
     state = MessageState(
       messages: state.messages,
@@ -372,24 +351,18 @@ class MessageNotifier extends Notifier<MessageState> {
 
     state = MessageState(isLoading: true, isSearching: true, searchQuery: query);
 
-    List<Message> results = [];
-    if (ConnectivityService().isOnline) {
-      try {
-        final response = await _apiClient.dio.get('/messages', queryParameters: {
-          'familyId': family.id,
-          'search': query,
-          'limit': 50,
-        });
-        results = (response.data as List).map((m) => Message.fromJson(m)).toList();
-      } catch (_) {}
+    try {
+      final response = await _apiClient.dio.get('/messages', queryParameters: {
+        'familyId': family.id,
+        'search': query,
+        'limit': 50,
+      });
+      final results = (response.data as List).map((m) => Message.fromJson(m)).toList();
+      state = MessageState(messages: results, isSearching: true, searchQuery: query, hasMore: false);
+    } catch (e) {
+      debugPrint('[Messages] Search failed: $e');
+      state = MessageState(isSearching: true, searchQuery: query, error: 'Search failed');
     }
-
-    if (results.isEmpty) {
-      results = await _repo.searchMessages(family.id, query);
-    }
-
-    final enriched = await _enrichMessages(results);
-    state = MessageState(messages: enriched, isSearching: true, searchQuery: query, hasMore: false);
   }
 
   void clearSearch() {
@@ -406,29 +379,6 @@ class MessageNotifier extends Notifier<MessageState> {
     _typingTimer = Timer(const Duration(seconds: 2), () {
       _socket.sendStopTyping(family.id);
     });
-  }
-
-  Future<Message> _enrichMessage(Message msg) async {
-    if (msg.choreId == null || msg.choreId!.isEmpty || msg.chore != null) return msg;
-    final chore = await _choreRepo.getChoreById(msg.choreId!);
-    if (chore == null) return msg;
-    return msg.copyWith(
-      chore: ChoreAttachment(
-        id: chore.id,
-        title: chore.title,
-        status: chore.status,
-        category: chore.category,
-        assignedTo: chore.assignedTo,
-      ),
-    );
-  }
-
-  Future<List<Message>> _enrichMessages(List<Message> messages) async {
-    final result = <Message>[];
-    for (final msg in messages) {
-      result.add(await _enrichMessage(msg));
-    }
-    return result;
   }
 }
 

@@ -17,30 +17,66 @@ class MessageRepository {
     args.add(limit);
 
     final maps = await db.rawQuery('''
-      SELECT m.*, u.display_name as user_name
+      SELECT m.*, u.display_name as user_name,
+             r.text as reply_text, r.user_id as reply_user_id,
+             ru.display_name as reply_user_name
       FROM messages m
       LEFT JOIN users u ON m.user_id = u.id
+      LEFT JOIN messages r ON m.reply_to_id = r.id
+      LEFT JOIN users ru ON r.user_id = ru.id
       WHERE m.family_id = ? AND m.deleted_at IS NULL
       ${before != null ? 'AND m.created_at < ?' : ''}
       ORDER BY m.created_at DESC
       LIMIT ?
     ''', args);
 
-    return maps.map((m) => Message.fromMap(m)).toList().reversed.toList();
+    return maps.map((m) => _messageFromMapWithReply(m)).toList().reversed.toList();
+  }
+
+  Message _messageFromMapWithReply(Map<String, dynamic> m) {
+    ReplyTo? replyTo;
+    if (m['reply_to_id'] != null && m['reply_text'] != null) {
+      replyTo = ReplyTo(
+        id: m['reply_to_id'] as String,
+        text: m['reply_text'] as String,
+        userId: m['reply_user_id'] as String,
+        userName: m['reply_user_name'] as String?,
+      );
+    }
+    return Message(
+      id: m['id'] as String,
+      familyId: m['family_id'] as String,
+      userId: m['user_id'] as String,
+      text: m['text'] as String,
+      createdAt: m['created_at'] as String,
+      syncStatus: m['sync_status'] as String? ?? 'synced',
+      userName: m['user_name'] as String?,
+      choreId: m['chore_id'] as String?,
+      mentions: m['mentions'] as String?,
+      replyToId: m['reply_to_id'] as String?,
+      imageUrl: m['image_url'] as String?,
+      reactions: m['reactions'] as String?,
+      deletedAt: m['deleted_at'] as String?,
+      replyTo: replyTo,
+    );
   }
 
   Future<List<Message>> searchMessages(String familyId, String query, {int limit = 50}) async {
     final db = await _db.database;
     final maps = await db.rawQuery('''
-      SELECT m.*, u.display_name as user_name
+      SELECT m.*, u.display_name as user_name,
+             r.text as reply_text, r.user_id as reply_user_id,
+             ru.display_name as reply_user_name
       FROM messages m
       LEFT JOIN users u ON m.user_id = u.id
+      LEFT JOIN messages r ON m.reply_to_id = r.id
+      LEFT JOIN users ru ON r.user_id = ru.id
       WHERE m.family_id = ? AND m.deleted_at IS NULL AND m.text LIKE ?
       ORDER BY m.created_at DESC
       LIMIT ?
     ''', [familyId, '%$query%', limit]);
 
-    return maps.map((m) => Message.fromMap(m)).toList().reversed.toList();
+    return maps.map((m) => _messageFromMapWithReply(m)).toList().reversed.toList();
   }
 
   Future<Message?> getMessageById(String id) async {
