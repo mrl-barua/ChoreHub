@@ -18,16 +18,31 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
+  /// Get the relevant date for a chore: dueDate if set, otherwise createdAt
+  DateTime? _choreDate(Chore chore) {
+    // Try dueDate first
+    if (chore.dueDate != null && chore.dueDate!.isNotEmpty) {
+      try { return DateTime.parse(chore.dueDate!); } catch (_) {}
+    }
+    // Fall back to createdAt
+    if (chore.createdAt != null && chore.createdAt!.isNotEmpty) {
+      try { return DateTime.parse(chore.createdAt!); } catch (_) {}
+    }
+    return null;
+  }
+
   List<Chore> _getChoresForDay(DateTime day, List<Chore> allChores) {
     return allChores.where((chore) {
-      if (chore.dueDate == null) return false;
-      try {
-        final due = DateTime.parse(chore.dueDate!);
-        return isSameDay(due, day);
-      } catch (_) {
-        return false;
-      }
+      final date = _choreDate(chore);
+      if (date == null) return false;
+      return isSameDay(date, day);
     }).toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDay = DateTime.now();
   }
 
   @override
@@ -94,12 +109,39 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             ),
           ),
           const SizedBox(height: 8),
+
+          // Chore count for selected day
+          if (_selectedDay != null && selectedChores.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: [
+                  Text(
+                    '${selectedChores.length} chore${selectedChores.length > 1 ? 's' : ''}',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade400),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${selectedChores.where((c) => c.isDone).length} done',
+                    style: TextStyle(fontSize: 13, color: AppTheme.accentGreen),
+                  ),
+                ],
+              ),
+            ),
+
           Expanded(
             child: selectedChores.isEmpty
                 ? Center(
-                    child: Text(
-                      _selectedDay == null ? 'Tap a day to see chores' : 'No chores on this day',
-                      style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.event_available_rounded, size: 48, color: Colors.grey.shade700),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No chores on this day',
+                          style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                        ),
+                      ],
                     ),
                   )
                 : ListView.builder(
@@ -109,6 +151,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       final chore = selectedChores[index];
                       final assignee = family.members.where((m) => m.userId == chore.assignedTo).firstOrNull;
                       final categoryColor = AppTheme.categoryColors[chore.category] ?? Colors.grey;
+                      final hasDueDate = chore.dueDate != null && chore.dueDate!.isNotEmpty;
 
                       return GestureDetector(
                         onTap: () => context.push('/chores/${chore.id}'),
@@ -129,7 +172,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Icon(
-                                  chore.isDone ? Icons.check_rounded : Icons.task_rounded,
+                                  chore.isDone ? Icons.check_rounded : _categoryIcon(chore.category),
                                   size: 18,
                                   color: chore.isDone ? AppTheme.accentGreen : categoryColor,
                                 ),
@@ -147,8 +190,19 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                         color: chore.isDone ? Colors.grey : Colors.white,
                                       ),
                                     ),
-                                    if (assignee != null)
-                                      Text(assignee.user?.displayName ?? '', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        if (assignee != null)
+                                          Text(assignee.user?.displayName ?? '', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                                        if (assignee != null && hasDueDate)
+                                          Text('  ·  ', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                                        if (hasDueDate)
+                                          Text('Due', style: TextStyle(fontSize: 11, color: AppTheme.accentOrange, fontWeight: FontWeight.w600))
+                                        else
+                                          Text('Created', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                                      ],
+                                    ),
                                   ],
                                 ),
                               ),
@@ -171,5 +225,17 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         ],
       ),
     );
+  }
+
+  IconData _categoryIcon(String category) {
+    switch (category) {
+      case 'cleaning': return Icons.cleaning_services_rounded;
+      case 'cooking': return Icons.restaurant_rounded;
+      case 'dishwashing': return Icons.local_laundry_service_rounded;
+      case 'laundry': return Icons.dry_cleaning_rounded;
+      case 'gardening': return Icons.grass_rounded;
+      case 'shopping': return Icons.shopping_cart_rounded;
+      default: return Icons.task_rounded;
+    }
   }
 }

@@ -11,7 +11,9 @@ const _priorities = ['low', 'medium', 'high'];
 const _recurrences = ['daily', 'weekly', 'monthly'];
 
 class CreateChoreScreen extends ConsumerStatefulWidget {
-  const CreateChoreScreen({super.key});
+  final String? initialTitle;
+  final String? initialCategory;
+  const CreateChoreScreen({super.key, this.initialTitle, this.initialCategory});
 
   @override
   ConsumerState<CreateChoreScreen> createState() => _CreateChoreScreenState();
@@ -31,7 +33,10 @@ class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
   @override
   void initState() {
     super.initState();
-    // Sync to get latest family members (e.g. newly joined User B)
+    if (widget.initialTitle != null) _titleController.text = widget.initialTitle!;
+    if (widget.initialCategory != null && _categories.contains(widget.initialCategory)) {
+      _category = widget.initialCategory!;
+    }
     Future.microtask(() => ref.read(familyProvider.notifier).refreshWithSync());
   }
 

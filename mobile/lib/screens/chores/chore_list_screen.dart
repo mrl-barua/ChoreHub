@@ -7,6 +7,7 @@ import '../../widgets/animated_list_item.dart';
 import '../../widgets/chore_card.dart';
 import '../../widgets/chore_filter_bar.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/template_bottom_sheet.dart';
 
 class ChoreListScreen extends ConsumerStatefulWidget {
   const ChoreListScreen({super.key});
@@ -58,6 +59,11 @@ class _ChoreListScreenState extends ConsumerState<ChoreListScreen> {
               )
             : const Text('Chores'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.bolt_rounded),
+            onPressed: () => showTemplateBottomSheet(context, ref),
+            tooltip: 'Quick Add',
+          ),
           IconButton(
             icon: const Icon(Icons.calendar_month_rounded),
             onPressed: () => context.push('/chores/calendar'),

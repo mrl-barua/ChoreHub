@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
 import '../../models/chore.dart';
+import '../../models/chore_comment.dart';
 import '../../models/chore_history.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chore_provider.dart';
@@ -20,6 +21,8 @@ class ChoreDetailScreen extends ConsumerStatefulWidget {
 class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
   Chore? _chore;
   List<ChoreHistory> _history = [];
+  List<ChoreComment> _comments = [];
+  final _commentController = TextEditingController();
   bool _isLoading = true;
   bool _showConfetti = false;
 
@@ -28,12 +31,38 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
     super.initState();
     _loadChore();
     _loadHistory();
+    _loadComments();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadChore() async {
     final chores = ref.read(choreProvider).chores;
     final chore = chores.where((c) => c.id == widget.choreId).firstOrNull;
     if (mounted) setState(() { _chore = chore; _isLoading = false; });
+  }
+
+  Future<void> _loadComments() async {
+    try {
+      final response = await ApiClient().dio.get('/chores/${widget.choreId}/comments');
+      final comments = (response.data as List).map((c) => ChoreComment.fromJson(c)).toList();
+      if (mounted) setState(() => _comments = comments);
+    } catch (_) {}
+  }
+
+  Future<void> _postComment() async {
+    final text = _commentController.text.trim();
+    if (text.isEmpty) return;
+    _commentController.clear();
+    try {
+      final response = await ApiClient().dio.post('/chores/${widget.choreId}/comments', data: {'text': text});
+      final comment = ChoreComment.fromJson(response.data);
+      if (mounted) setState(() => _comments = [..._comments, comment]);
+    } catch (_) {}
   }
 
   Future<void> _loadHistory() async {
@@ -465,6 +494,61 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                   label: const Text('Mark as Pending'),
                   style: FilledButton.styleFrom(backgroundColor: AppTheme.accentOrange),
                 ),
+
+              // Comments section
+              const SizedBox(height: 32),
+              const Text('Comments', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 12),
+              if (_comments.isEmpty)
+                Text('No comments yet', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+              ..._comments.map((c) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundColor: AppTheme.accent.withValues(alpha: 0.2),
+                      child: Text((c.userName ?? '?')[0].toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Text(c.userName ?? 'Unknown', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          const SizedBox(width: 8),
+                          Text(_timeAgo(c.createdAt), style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                        ]),
+                        const SizedBox(height: 2),
+                        Text(c.text, style: const TextStyle(fontSize: 13)),
+                      ],
+                    )),
+                  ],
+                ),
+              )),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commentController,
+                    decoration: InputDecoration(
+                      hintText: 'Add a comment...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: const Color(0xFF2A2A40),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      isDense: true,
+                    ),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _postComment,
+                  icon: const Icon(Icons.send_rounded, color: AppTheme.accent, size: 20),
+                ),
+              ]),
             ],
           ),
 

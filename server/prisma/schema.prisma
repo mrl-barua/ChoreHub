@@ -90,6 +90,16 @@ model ChoreHistory {
   @@map("chore_history")
 }
 
+model ChoreComment {
+  id        String   @id @default(uuid())
+  choreId   String   @map("chore_id")
+  userId    String   @map("user_id")
+  text      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("chore_comments")
+}
+
 model Message {
   id        String    @id @default(uuid())
   familyId  String    @map("family_id")

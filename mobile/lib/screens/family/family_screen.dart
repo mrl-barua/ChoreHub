@@ -275,7 +275,9 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
 
               return AnimatedListItem(
                 index: entry.key + 3,
-                child: Card(
+                child: GestureDetector(
+                  onTap: () => context.push('/family/member/${member.userId}'),
+                  child: Card(
                   margin: const EdgeInsets.only(bottom: 10),
                   child: Padding(
                     padding: const EdgeInsets.all(14),
@@ -380,6 +382,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                       ],
                     ),
                   ),
+                ),
                 ),
               );
             }),

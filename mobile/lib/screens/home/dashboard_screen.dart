@@ -13,6 +13,8 @@ import '../../widgets/chore_card.dart';
 import '../../widgets/dashboard_stats.dart';
 import '../../widgets/activity_feed.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/weekly_summary_card.dart';
+import '../../widgets/suggestions_card.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -28,6 +30,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   List<Chore> _upcomingDue = [];
   List<Chore> _doneToday = [];
   int _streak = 0;
+  Map<String, dynamic>? _weeklySummary;
+  List<dynamic> _suggestions = [];
 
   int _daysUntilDue(String? dueDate) {
     if (dueDate == null) return 999;
@@ -54,12 +58,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     try {
       final api = ApiClient();
 
-      // Fetch chores and analytics from server in parallel
+      // Fetch all dashboard data from server in parallel
       final results = await Future.wait([
         api.dio.get('/chores', queryParameters: {'familyId': family.id}),
         api.dio.get('/chores/history', queryParameters: {'familyId': family.id, 'limit': 10}),
         api.dio.get('/chores/analytics', queryParameters: {'familyId': family.id}),
       ]);
+
+      // Load optional data separately (don't crash if these fail)
+      Map<String, dynamic>? weeklySummary;
+      List<dynamic> suggestions = [];
+      try { weeklySummary = (await api.dio.get('/families/${family.id}/weekly-summary')).data; } catch (_) {}
+      try { suggestions = (await api.dio.get('/chores/suggestions', queryParameters: {'familyId': family.id})).data as List; } catch (_) {}
 
       final allChores = (results[0].data as List).map((c) => Chore.fromJson(c)).toList();
       final history = (results[1].data as List).map((h) => ChoreHistory.fromJson(h)).toList();
@@ -92,6 +102,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           _upcomingDue = upcoming;
           _doneToday = doneToday;
           _streak = streak;
+          _weeklySummary = weeklySummary;
+          _suggestions = suggestions;
         });
       }
     } catch (_) {
@@ -111,6 +123,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final auth = ref.watch(authProvider);
     final family = ref.watch(familyProvider);
     final chores = ref.watch(choreProvider);
+
+    if (family.currentFamily == null && !family.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/welcome');
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     if (family.currentFamily == null) {
       return Scaffold(
@@ -191,7 +210,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               // Stats
               AnimatedListItem(index: 1, child: DashboardStats(stats: chores.stats)),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+
+              // Weekly summary
+              if (_weeklySummary != null)
+                AnimatedListItem(index: 2, child: WeeklySummaryCard(data: _weeklySummary!)),
+              if (_weeklySummary != null) const SizedBox(height: 12),
+
+              // Smart suggestions
+              if (_suggestions.isNotEmpty)
+                AnimatedListItem(index: 3, child: SuggestionsCard(suggestions: _suggestions)),
+              if (_suggestions.isNotEmpty) const SizedBox(height: 12),
 
               // Quick actions
               AnimatedListItem(

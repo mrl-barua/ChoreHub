@@ -17,6 +17,8 @@ import 'screens/family/invite_screen.dart';
 import 'screens/family/invitations_screen.dart';
 import 'screens/analytics/analytics_screen.dart';
 import 'screens/chores/calendar_screen.dart';
+import 'screens/family/member_detail_screen.dart';
+import 'screens/onboarding/welcome_screen.dart';
 import 'screens/chat/chat_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'widgets/shell_screen.dart';
@@ -112,7 +114,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/chores/create',
-        pageBuilder: (_, state) => _slideUpPage(const CreateChoreScreen(), state),
+        pageBuilder: (_, state) => _slideUpPage(
+          CreateChoreScreen(
+            initialTitle: state.uri.queryParameters['title'],
+            initialCategory: state.uri.queryParameters['category'],
+          ),
+          state,
+        ),
       ),
       GoRoute(
         path: '/chores/:id',
@@ -128,6 +136,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/chores/calendar',
         pageBuilder: (_, state) => _slideUpPage(const CalendarScreen(), state),
+      ),
+      GoRoute(
+        path: '/family/member/:userId',
+        pageBuilder: (_, state) => _slideUpPage(
+          MemberDetailScreen(userId: state.pathParameters['userId']!),
+          state,
+        ),
+      ),
+      GoRoute(
+        path: '/welcome',
+        pageBuilder: (_, state) => _fadeScalePage(const WelcomeScreen(), state),
       ),
       GoRoute(
         path: '/chores/:id/edit',

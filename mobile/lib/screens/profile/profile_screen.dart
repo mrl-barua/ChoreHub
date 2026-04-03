@@ -5,6 +5,7 @@ import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/connectivity_provider.dart';
 import '../../providers/theme_provider.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../services/api_client.dart';
 import '../../widgets/animated_list_item.dart';
 
@@ -17,11 +18,29 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Map<String, dynamic>? _stats;
+  bool _choreReminders = true;
+  bool _chatMentions = true;
+  bool _assignmentAlerts = true;
+  final _prefStorage = const FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
     _loadStats();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final r = await _prefStorage.read(key: 'pref_chore_reminders');
+    final m = await _prefStorage.read(key: 'pref_chat_mentions');
+    final a = await _prefStorage.read(key: 'pref_assignment_alerts');
+    if (mounted) {
+      setState(() {
+        _choreReminders = r != 'false';
+        _chatMentions = m != 'false';
+        _assignmentAlerts = a != 'false';
+      });
+    }
   }
 
   Future<void> _loadStats() async {
@@ -282,6 +301,55 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           color: isOnline ? Colors.green : Colors.orange),
                       title: const Text('Status'),
                       subtitle: Text(isOnline ? 'Online' : 'Offline'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Notifications
+            AnimatedListItem(
+              index: 3,
+              child: Card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+                      child: Text('Notifications', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey)),
+                    ),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.alarm_rounded),
+                      title: const Text('Chore Reminders'),
+                      subtitle: const Text('Upcoming and overdue chores'),
+                      value: _choreReminders,
+                      onChanged: (v) async {
+                        setState(() => _choreReminders = v);
+                        await _prefStorage.write(key: 'pref_chore_reminders', value: v.toString());
+                      },
+                    ),
+                    const Divider(height: 1, indent: 56),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.alternate_email_rounded),
+                      title: const Text('Chat Mentions'),
+                      subtitle: const Text('When someone @mentions you'),
+                      value: _chatMentions,
+                      onChanged: (v) async {
+                        setState(() => _chatMentions = v);
+                        await _prefStorage.write(key: 'pref_chat_mentions', value: v.toString());
+                      },
+                    ),
+                    const Divider(height: 1, indent: 56),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.assignment_ind_rounded),
+                      title: const Text('Assignment Alerts'),
+                      subtitle: const Text('New chore assignments'),
+                      value: _assignmentAlerts,
+                      onChanged: (v) async {
+                        setState(() => _assignmentAlerts = v);
+                        await _prefStorage.write(key: 'pref_assignment_alerts', value: v.toString());
+                      },
                     ),
                   ],
                 ),

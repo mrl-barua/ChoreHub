@@ -76,6 +76,61 @@ router.get('/:id/members', authenticate, async (req: AuthRequest, res: Response)
   }
 });
 
+// Weekly summary
+router.get('/:id/weekly-summary', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const familyId = String(req.params.id);
+    const isMember = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId: req.userId! } },
+    });
+    if (!isMember) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const now = new Date();
+    const thisWeekStart = new Date(now); thisWeekStart.setDate(now.getDate() - now.getDay() + 1); thisWeekStart.setHours(0,0,0,0);
+    const lastWeekStart = new Date(thisWeekStart); lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+    const lastWeekEnd = new Date(thisWeekStart);
+
+    const [thisWeekCount, lastWeekCount, thisWeekHistory] = await Promise.all([
+      prisma.choreHistory.count({ where: { familyId, action: { startsWith: 'completed' }, createdAt: { gte: thisWeekStart } } }),
+      prisma.choreHistory.count({ where: { familyId, action: { startsWith: 'completed' }, createdAt: { gte: lastWeekStart, lt: lastWeekEnd } } }),
+      prisma.choreHistory.findMany({ where: { familyId, action: { startsWith: 'completed' }, createdAt: { gte: thisWeekStart } } }),
+    ]);
+
+    // Top contributor
+    const contributorCount: Record<string, number> = {};
+    thisWeekHistory.forEach((h: any) => { contributorCount[h.userId] = (contributorCount[h.userId] || 0) + 1; });
+    const topContributorId = Object.entries(contributorCount).sort(([, a], [, b]) => b - a)[0];
+    let topContributor = null;
+    if (topContributorId) {
+      const user = await prisma.user.findUnique({ where: { id: topContributorId[0] }, select: { displayName: true } });
+      topContributor = { userId: topContributorId[0], displayName: user?.displayName || 'Unknown', count: topContributorId[1] };
+    }
+
+    // Top category
+    const choreIds = thisWeekHistory.map((h: any) => h.choreId);
+    const chores = choreIds.length > 0
+      ? await prisma.chore.findMany({ where: { id: { in: choreIds } }, select: { category: true } })
+      : [];
+    const catCount: Record<string, number> = {};
+    chores.forEach((c: any) => { catCount[c.category] = (catCount[c.category] || 0) + 1; });
+    const topCat = Object.entries(catCount).sort(([, a], [, b]) => b - a)[0];
+
+    const changePercent = lastWeekCount > 0 ? Math.round(((thisWeekCount - lastWeekCount) / lastWeekCount) * 100) : 0;
+
+    res.json({
+      totalCompletedThisWeek: thisWeekCount,
+      totalCompletedLastWeek: lastWeekCount,
+      changePercent,
+      topContributor,
+      topCategory: topCat ? topCat[0] : null,
+      topCategoryCount: topCat ? topCat[1] : 0,
+    });
+  } catch (error) {
+    console.error('Weekly summary error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Leave family (self) or remove member (admin only)
 router.delete('/:id/members/:userId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {

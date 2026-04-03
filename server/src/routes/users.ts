@@ -148,6 +148,77 @@ router.get('/me/stats', authenticate, async (req: AuthRequest, res: Response): P
   }
 });
 
+// Get stats for any user (for member drill-down)
+router.get('/:userId/stats', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const targetUserId = String(req.params.userId);
+    const familyId = String(req.query.familyId || '');
+    if (!familyId) { res.status(400).json({ error: 'familyId required' }); return; }
+
+    // Verify both users are members
+    const [requesterMember, targetMember] = await Promise.all([
+      prisma.familyMember.findUnique({ where: { familyId_userId: { familyId, userId: req.userId! } } }),
+      prisma.familyMember.findUnique({ where: { familyId_userId: { familyId, userId: targetUserId } } }),
+    ]);
+    if (!requesterMember || !targetMember) { res.status(403).json({ error: 'Forbidden' }); return; }
+
+    const [totalCompleted, totalAssigned] = await Promise.all([
+      prisma.choreHistory.count({ where: { userId: targetUserId, familyId, action: { startsWith: 'completed' } } }),
+      prisma.chore.count({ where: { assignedTo: targetUserId, familyId } }),
+    ]);
+
+    // Category breakdown
+    const completedHistory = await prisma.choreHistory.findMany({
+      where: { userId: targetUserId, familyId, action: { startsWith: 'completed' } },
+      select: { choreId: true },
+    });
+    const choreIds = completedHistory.map((h: any) => h.choreId);
+    const completedChores = choreIds.length > 0
+      ? await prisma.chore.findMany({ where: { id: { in: choreIds } }, select: { category: true } })
+      : [];
+    const categoryBreakdown: Record<string, number> = {};
+    completedChores.forEach((c: any) => { categoryBreakdown[c.category] = (categoryBreakdown[c.category] || 0) + 1; });
+    const topCat = Object.entries(categoryBreakdown).sort(([, a], [, b]) => b - a)[0];
+
+    // Weekly completions
+    const now = new Date();
+    const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay() + 1); weekStart.setHours(0,0,0,0);
+    const weekHistory = await prisma.choreHistory.findMany({
+      where: { userId: targetUserId, familyId, action: { startsWith: 'completed' }, createdAt: { gte: weekStart } },
+    });
+    const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const weeklyCompletions = dayNames.map((name, i) => {
+      const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
+      const ds = d.toISOString().substring(0, 10);
+      return { dayName: name, completed: weekHistory.filter((h: any) => h.createdAt.toISOString().substring(0, 10) === ds).length };
+    });
+
+    // Streak
+    const allHistory = await prisma.choreHistory.findMany({
+      where: { userId: targetUserId, familyId, action: { startsWith: 'completed' } },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+    const uniqueDays = Array.from(new Set(allHistory.map((h: any) => h.createdAt.toISOString().substring(0, 10)))) as string[];
+    let streak = 0; let checkDate = new Date();
+    for (const dayStr of uniqueDays) {
+      const day = new Date(dayStr);
+      const diff = Math.round((new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate()).getTime()
+        - new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime()) / 86400000);
+      if (diff <= 1) { streak++; checkDate = day; } else break;
+    }
+
+    res.json({
+      totalCompleted, totalAssigned, currentStreak: streak,
+      topCategory: topCat ? topCat[0] : null, topCategoryCount: topCat ? topCat[1] : 0,
+      weeklyCompletions, categoryBreakdown,
+    });
+  } catch (error) {
+    console.error('Member stats error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = await prisma.user.findUnique({
