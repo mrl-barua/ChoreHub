@@ -102,6 +102,7 @@ class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
                 decoration: const InputDecoration(labelText: 'What needs to be done?', prefixIcon: Icon(Icons.edit_rounded)),
                 validator: (v) => v == null || v.isEmpty ? 'Enter a title' : null,
                 textCapitalization: TextCapitalization.sentences,
+                maxLength: 100,
               ),
               const SizedBox(height: 16),
               TextFormField(

@@ -17,17 +17,32 @@ import messageRoutes from './routes/messages';
 
 dotenv.config();
 
+// Validate required environment variables
+const requiredEnv = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
+for (const key of requiredEnv) {
+  if (!process.env[key]) {
+    console.error(`FATAL: Missing required env var: ${key}`);
+    process.exit(1);
+  }
+}
+
 const app = express();
 const httpServer = createServer(app);
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
+const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'];
+
+// Security middleware FIRST
+app.use(helmet());
+app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(express.json({ limit: '1mb' }));
 
 // Serve uploaded images
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Socket.IO setup
 const io = new Server(httpServer, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
+  cors: { origin: allowedOrigins, methods: ['GET', 'POST'] },
 });
 
 // Socket.IO auth middleware - verify JWT
@@ -237,10 +252,6 @@ io.on('connection', async (socket) => {
     console.log(`User ${userId} disconnected`);
   });
 });
-
-app.use(helmet());
-app.use(cors());
-app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

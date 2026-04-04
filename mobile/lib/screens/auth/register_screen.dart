@@ -74,7 +74,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   controller: _emailController,
                   decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
                   keyboardType: TextInputType.emailAddress,
-                  validator: (v) => v == null || !v.contains('@') ? 'Enter a valid email' : null,
+                  validator: (v) {
+                    if (v == null || !RegExp(r'^[\w\.\-]+@[\w\.\-]+\.\w{2,}$').hasMatch(v)) return 'Enter a valid email';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -88,7 +91,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                   ),
                   obscureText: _obscurePassword,
-                  validator: (v) => v == null || v.length < 6 ? 'At least 6 characters' : null,
+                  validator: (v) {
+                    if (v == null || v.length < 8) return 'At least 8 characters';
+                    if (!RegExp(r'[A-Z]').hasMatch(v)) return 'Needs an uppercase letter';
+                    if (!RegExp(r'[a-z]').hasMatch(v)) return 'Needs a lowercase letter';
+                    if (!RegExp(r'[0-9]').hasMatch(v)) return 'Needs a number';
+                    return null;
+                  },
                 ),
                 if (auth.error != null) ...[
                   const SizedBox(height: 16),

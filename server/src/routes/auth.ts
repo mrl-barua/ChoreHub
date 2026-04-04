@@ -2,11 +2,38 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-router.post('/register', async (req: Request, res: Response): Promise<void> => {
+// Rate limiters
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per window
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 registrations per hour
+  message: { error: 'Too many accounts created. Try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Password validation
+function validatePassword(password: string): string | null {
+  if (password.length < 8) return 'Password must be at least 8 characters';
+  if (!/[A-Z]/.test(password)) return 'Password must contain an uppercase letter';
+  if (!/[a-z]/.test(password)) return 'Password must contain a lowercase letter';
+  if (!/[0-9]/.test(password)) return 'Password must contain a number';
+  return null;
+}
+
+router.post('/register', registerLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const { username, displayName, email, password } = req.body;
 
@@ -22,6 +49,9 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       res.status(409).json({ error: 'Email or username already taken' });
       return;
     }
+
+    const pwError = validatePassword(password);
+    if (pwError) { res.status(400).json({ error: pwError }); return; }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
@@ -42,7 +72,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-router.post('/login', async (req: Request, res: Response): Promise<void> => {
+router.post('/login', loginLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
 

@@ -21,6 +21,14 @@ class ApiClient {
 
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
+        // Enforce HTTPS in release builds
+        if (kReleaseMode && !options.uri.isScheme('HTTPS')) {
+          handler.reject(DioException(
+            requestOptions: options,
+            message: 'HTTPS required in production',
+          ));
+          return;
+        }
         final token = await _storage.read(key: 'access_token');
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';

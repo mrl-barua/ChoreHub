@@ -60,10 +60,14 @@ router.patch('/me', authenticate, async (req: AuthRequest, res: Response): Promi
 router.post('/me/change-password', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword || newPassword.length < 6) {
-      res.status(400).json({ error: 'New password must be at least 6 characters' });
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: 'Both current and new password are required' });
       return;
     }
+    if (newPassword.length < 8) { res.status(400).json({ error: 'Password must be at least 8 characters' }); return; }
+    if (!/[A-Z]/.test(newPassword)) { res.status(400).json({ error: 'Password must contain an uppercase letter' }); return; }
+    if (!/[a-z]/.test(newPassword)) { res.status(400).json({ error: 'Password must contain a lowercase letter' }); return; }
+    if (!/[0-9]/.test(newPassword)) { res.status(400).json({ error: 'Password must contain a number' }); return; }
 
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
     if (!user) { res.status(404).json({ error: 'User not found' }); return; }
