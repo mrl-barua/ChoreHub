@@ -68,15 +68,16 @@ class ShellScreen extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
           child: Container(
-            height: 60,
+            height: 64,
             decoration: BoxDecoration(
-              color: const Color(0xFF1C1C24),
-              borderRadius: BorderRadius.circular(30),
+              color: const Color(0xFF1A1A26),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
@@ -90,35 +91,61 @@ class ShellScreen extends ConsumerWidget {
                   onTap: () => context.go(_routes[index]),
                   behavior: HitTestBehavior.opaque,
                   child: SizedBox(
-                    width: 48,
-                    height: 48,
+                    width: 52,
+                    height: 52,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        Icon(
-                          isSelected ? _icons[index] : _outlinedIcons[index],
-                          size: 22,
-                          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.35),
+                        // Icon with scale animation
+                        AnimatedScale(
+                          scale: isSelected ? 1.1 : 1.0,
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeOut,
+                          child: AnimatedOpacity(
+                            opacity: isSelected ? 1.0 : 0.4,
+                            duration: const Duration(milliseconds: 200),
+                            child: Icon(
+                              isSelected ? _icons[index] : _outlinedIcons[index],
+                              size: 24,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
+                        // Active indicator dot
+                        if (isSelected)
+                          Positioned(
+                            bottom: 4,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 5,
+                              height: 5,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF6C63FF),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
                         // Unread badge on chat tab
                         if (isChatTab && unreadCount > 0 && !isSelected)
                           Positioned(
                             top: 6,
                             right: 4,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF6C63FF),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF6C63FF).withValues(alpha: 0.4),
+                                    blurRadius: 6,
+                                  ),
+                                ],
                               ),
-                              constraints: const BoxConstraints(minWidth: 16, minHeight: 14),
+                              constraints: const BoxConstraints(minWidth: 18, minHeight: 16),
                               child: Text(
                                 unreadCount > 99 ? '99+' : '$unreadCount',
-                                style: const TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
+                                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white),
                                 textAlign: TextAlign.center,
                               ),
                             ),

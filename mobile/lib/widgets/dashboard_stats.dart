@@ -18,9 +18,16 @@ class DashboardStats extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C24),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E1E2E), Color(0xFF1C1C24)],
+        ),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4)),
+        ],
       ),
       child: Row(
         children: [
@@ -30,29 +37,46 @@ class DashboardStats extends StatelessWidget {
               children: [
                 Text(
                   total > 0 ? '${(progress * 100).round()}% Done' : 'No chores',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
+                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
                 ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    _Tag(label: '$done done', color: AppTheme.accentGreen),
-                    _Tag(label: '$pending left', color: AppTheme.accentOrange),
-                    if (overdue > 0) _Tag(label: '$overdue late', color: AppTheme.accentRed),
-                  ],
-                ),
+                const SizedBox(height: 16),
+                _StatRow(icon: Icons.check_circle_rounded, label: '$done done', color: AppTheme.accentGreen),
+                const SizedBox(height: 8),
+                _StatRow(icon: Icons.pending_rounded, label: '$pending left', color: AppTheme.accentOrange),
+                if (overdue > 0) ...[
+                  const SizedBox(height: 8),
+                  _StatRow(icon: Icons.warning_rounded, label: '$overdue overdue', color: AppTheme.accentRed),
+                ],
               ],
             ),
           ),
           const SizedBox(width: 16),
-          AnimatedProgressRing(
-            progress: progress,
-            size: 72,
-            strokeWidth: 6,
-            color: AppTheme.accent,
-            backgroundColor: Colors.white.withValues(alpha: 0.08),
-            center: Text('$done', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+          // Glowing progress ring
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.accent.withValues(alpha: 0.15),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: AnimatedProgressRing(
+              progress: progress,
+              size: 78,
+              strokeWidth: 7,
+              color: AppTheme.accent,
+              backgroundColor: Colors.white.withValues(alpha: 0.06),
+              center: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('$done', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white)),
+                  Text('of $total', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -60,20 +84,29 @@ class DashboardStats extends StatelessWidget {
   }
 }
 
-class _Tag extends StatelessWidget {
+class _StatRow extends StatelessWidget {
+  final IconData icon;
   final String label;
   final Color color;
-  const _Tag({required this.label, required this.color});
+  const _StatRow({required this.icon, required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 18,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade300)),
+      ],
     );
   }
 }

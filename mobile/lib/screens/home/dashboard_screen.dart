@@ -320,7 +320,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               if (_myChores.isNotEmpty) ...[
                 AnimatedListItem(
                   index: 5,
-                  child: const Text('My Tasks', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  child: _SectionHeader(title: 'My Tasks', color: AppTheme.accent),
                 ),
                 const SizedBox(height: 8),
                 ...(_myChores.take(3).toList().asMap().entries.map((entry) {
@@ -346,7 +346,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               if (_upcomingDue.isNotEmpty) ...[
                 AnimatedListItem(
                   index: 8,
-                  child: const Text('Due Soon', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  child: _SectionHeader(title: 'Due Soon', color: AppTheme.accentOrange),
                 ),
                 const SizedBox(height: 8),
                 ...(_upcomingDue.take(3).toList().asMap().entries.map((entry) {
@@ -418,7 +418,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Recent Chores', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                    _SectionHeader(title: 'Recent Chores', color: AppTheme.accentGreen),
                     if (chores.chores.length > 5)
                       TextButton(onPressed: () => context.go('/chores'), child: const Text('View All')),
                   ],
@@ -464,7 +464,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 24),
                 AnimatedListItem(
                   index: 15,
-                  child: const Text('Recent Activity', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  child: _SectionHeader(title: 'Recent Activity', color: AppTheme.accentBlue),
                 ),
                 const SizedBox(height: 8),
                 AnimatedListItem(
@@ -488,6 +488,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               label: const Text('Add Chore'),
             )
           : null,
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final Color color;
+  const _SectionHeader({required this.title, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 20,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+        ),
+        const SizedBox(width: 10),
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+      ],
     );
   }
 }
