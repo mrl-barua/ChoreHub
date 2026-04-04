@@ -23,13 +23,26 @@ class AppTheme {
     'other': Color(0xFF8E8E93),
   };
 
-  // Dark surfaces
+  // Dark surfaces — 3 elevation levels
   static const Color bg = Color(0xFF0F0F14);
-  static const Color surface = Color(0xFF1C1C24);
-  static const Color surfaceVariant = Color(0xFF2A2A40);
+  static const Color surfaceLow = Color(0xFF151519);     // recessed/background cards
+  static const Color surface = Color(0xFF1C1C24);         // default cards
+  static const Color surfaceHigh = Color(0xFF252533);     // elevated/interactive cards
+  static const Color surfaceVariant = Color(0xFF2A2A40);  // inputs/active surfaces
   static const Color _bg = bg;
   static const Color _card = surface;
-  static const Color _cardLight = Color(0xFF252530);
+  static const Color _cardLight = surfaceHigh;
+
+  // Shadows
+  static List<BoxShadow> get shadowSmall => [
+    BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 4, offset: const Offset(0, 1)),
+  ];
+  static List<BoxShadow> get shadowMedium => [
+    BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 10, offset: const Offset(0, 3)),
+  ];
+  static List<BoxShadow> get shadowLarge => [
+    BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 20, offset: const Offset(0, 6)),
+  ];
 
   static ThemeData get darkTheme {
     return ThemeData(
@@ -60,7 +73,10 @@ class AppTheme {
         elevation: 0,
         color: _card,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
+        ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: accent,

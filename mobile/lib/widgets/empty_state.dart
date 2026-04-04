@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 
 class EmptyState extends StatefulWidget {
   final IconData icon;
@@ -19,30 +20,32 @@ class EmptyState extends StatefulWidget {
 }
 
 class _EmptyStateState extends State<EmptyState>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+    with TickerProviderStateMixin {
+  late final AnimationController _entranceController;
+  late final AnimationController _floatController;
   late final Animation<double> _scale;
   late final Animation<double> _opacity;
+  late final Animation<double> _float;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _scale = Tween(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
-    );
-    _opacity = Tween(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
-    _controller.forward();
+    // Entrance animation
+    _entranceController = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _scale = Tween(begin: 0.7, end: 1.0).animate(CurvedAnimation(parent: _entranceController, curve: Curves.easeOutBack));
+    _opacity = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _entranceController, curve: Curves.easeOut));
+    _entranceController.forward();
+
+    // Floating loop animation
+    _floatController = AnimationController(vsync: this, duration: const Duration(milliseconds: 2500));
+    _float = Tween(begin: 0.0, end: 6.0).animate(CurvedAnimation(parent: _floatController, curve: Curves.easeInOut));
+    _floatController.repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _entranceController.dispose();
+    _floatController.dispose();
     super.dispose();
   }
 
@@ -58,31 +61,54 @@ class _EmptyStateState extends State<EmptyState>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-                    shape: BoxShape.circle,
+                // Floating icon with gradient container
+                AnimatedBuilder(
+                  animation: _float,
+                  builder: (context, child) => Transform.translate(
+                    offset: Offset(0, -_float.value),
+                    child: child,
                   ),
-                  child: Icon(widget.icon, size: 48, color: Theme.of(context).colorScheme.primary),
+                  child: Container(
+                    width: 110,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppTheme.accent.withValues(alpha: 0.2),
+                          AppTheme.accent.withValues(alpha: 0.06),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.accent.withValues(alpha: 0.15)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.accent.withValues(alpha: 0.1),
+                          blurRadius: 24,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Icon(widget.icon, size: 48, color: AppTheme.accent),
+                  ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
                 Text(
                   widget.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.3),
                   textAlign: TextAlign.center,
                 ),
                 if (widget.subtitle != null) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Text(
                     widget.subtitle!,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade400, height: 1.4),
                     textAlign: TextAlign.center,
                   ),
                 ],
                 if (widget.action != null) ...[
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
                   widget.action!,
                 ],
               ],

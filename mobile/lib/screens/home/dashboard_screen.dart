@@ -13,6 +13,7 @@ import '../../widgets/chore_card.dart';
 import '../../widgets/dashboard_stats.dart';
 import '../../widgets/activity_feed.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/pressable.dart';
 import '../../widgets/weekly_summary_card.dart';
 import '../../widgets/suggestions_card.dart';
 
@@ -523,19 +524,27 @@ class _QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFF1C1C24),
+          color: AppTheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 6),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(height: 8),
             Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white70), textAlign: TextAlign.center),
           ],
         ),

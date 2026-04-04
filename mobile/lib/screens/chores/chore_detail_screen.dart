@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
 import '../../services/api_client.dart';
+import '../../widgets/polished_bottom_sheet.dart';
 
 class ChoreDetailScreen extends ConsumerStatefulWidget {
   final String choreId;
@@ -76,13 +77,10 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
   void _showCompletionDialog() {
     final noteController = TextEditingController();
 
-    showModalBottomSheet(
+    showPolishedBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF1C1C24),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+        padding: EdgeInsets.only(left: 24, right: 24, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,13 +138,11 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
   void _showReassignDialog() {
     final members = ref.read(familyProvider).members;
 
-    showModalBottomSheet(
+    showPolishedBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1C1C24),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
