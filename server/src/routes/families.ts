@@ -188,4 +188,84 @@ router.delete('/:id/members/:userId', authenticate, async (req: AuthRequest, res
   }
 });
 
+// Update family name
+router.patch('/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const familyId = String(req.params.id);
+    const { name } = req.body;
+    const member = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId: req.userId! } },
+    });
+    if (!member || member.role !== 'admin') { res.status(403).json({ error: 'Admin only' }); return; }
+    const updated = await prisma.family.update({ where: { id: familyId }, data: { name } });
+    res.json(updated);
+  } catch (error) { res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Change member role
+router.patch('/:id/members/:userId/role', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const familyId = String(req.params.id);
+    const targetUserId = String(req.params.userId);
+    const { role } = req.body;
+    if (!['admin', 'member'].includes(role)) { res.status(400).json({ error: 'Role must be admin or member' }); return; }
+    const requester = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId: req.userId! } },
+    });
+    if (!requester || requester.role !== 'admin') { res.status(403).json({ error: 'Admin only' }); return; }
+    const updated = await prisma.familyMember.update({
+      where: { familyId_userId: { familyId, userId: targetUserId } },
+      data: { role },
+    });
+    res.json(updated);
+  } catch (error) { res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Create family challenge
+router.post('/:id/challenges', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const familyId = String(req.params.id);
+    const { title, targetCount, endDate } = req.body;
+    const member = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId: req.userId! } },
+    });
+    if (!member) { res.status(403).json({ error: 'Forbidden' }); return; }
+    const challenge = await prisma.familyChallenge.create({
+      data: {
+        familyId,
+        title: title || 'Family Challenge',
+        targetCount: targetCount || 20,
+        startDate: new Date(),
+        endDate: endDate ? new Date(endDate) : new Date(Date.now() + 7 * 86400000),
+        createdBy: req.userId!,
+      },
+    });
+    res.status(201).json({ ...challenge, startDate: challenge.startDate.toISOString(), endDate: challenge.endDate.toISOString(), createdAt: challenge.createdAt.toISOString() });
+  } catch (error) { res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// List challenges
+router.get('/:id/challenges', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const familyId = String(req.params.id);
+    const challenges = await prisma.familyChallenge.findMany({
+      where: { familyId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Update currentCount from completed chores count
+    const result = [];
+    for (const c of challenges) {
+      const count = await prisma.choreHistory.count({
+        where: { familyId, action: { startsWith: 'completed' }, createdAt: { gte: c.startDate, lte: c.endDate } },
+      });
+      if (count !== c.currentCount) {
+        await prisma.familyChallenge.update({ where: { id: c.id }, data: { currentCount: count } });
+      }
+      result.push({ ...c, currentCount: count, startDate: c.startDate.toISOString(), endDate: c.endDate.toISOString(), createdAt: c.createdAt.toISOString() });
+    }
+    res.json(result);
+  } catch (error) { res.status(500).json({ error: 'Internal server error' }); }
+});
+
 export default router;

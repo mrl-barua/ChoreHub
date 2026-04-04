@@ -135,9 +135,19 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
         title: Text(family.currentFamily!.name),
         actions: [
           IconButton(
+            icon: const Icon(Icons.emoji_events_rounded),
+            onPressed: () => context.push('/family/challenges'),
+            tooltip: 'Challenges',
+          ),
+          IconButton(
             icon: const Icon(Icons.mail_outline_rounded),
             onPressed: () => context.push('/family/invitations'),
             tooltip: 'Invitations',
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_rounded),
+            onPressed: () => context.push('/family/settings'),
+            tooltip: 'Settings',
           ),
         ],
       ),

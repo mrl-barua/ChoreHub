@@ -117,6 +117,49 @@ router.get(
   },
 );
 
+// Swap requests - list pending for user (MUST be before /:id routes)
+router.get('/swaps', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const familyId = String(req.query.familyId || '');
+    if (!familyId) { res.status(400).json({ error: 'familyId required' }); return; }
+    const swaps = await prisma.choreSwapRequest.findMany({
+      where: { familyId, status: 'pending', OR: [{ fromUserId: req.userId! }, { toUserId: req.userId! }] },
+      orderBy: { createdAt: 'desc' },
+    });
+    // Enrich with user names and chore titles
+    const choreIds = swaps.map((s: any) => s.choreId);
+    const userIds = Array.from(new Set(swaps.flatMap((s: any) => [s.fromUserId, s.toUserId]))) as string[];
+    const [chores, users] = await Promise.all([
+      prisma.chore.findMany({ where: { id: { in: choreIds } }, select: { id: true, title: true, category: true } }),
+      prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, displayName: true } }),
+    ]);
+    res.json(swaps.map((s: any) => ({
+      ...s,
+      createdAt: s.createdAt.toISOString(),
+      chore: chores.find((c) => c.id === s.choreId),
+      fromUser: users.find((u) => u.id === s.fromUserId),
+      toUser: users.find((u) => u.id === s.toUserId),
+    })));
+  } catch (error) { res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Accept/decline swap
+router.patch('/swaps/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { status } = req.body;
+    if (!['accepted', 'declined'].includes(status)) { res.status(400).json({ error: 'Status must be accepted or declined' }); return; }
+    const swap = await prisma.choreSwapRequest.findUnique({ where: { id: String(req.params.id) } });
+    if (!swap || swap.toUserId !== req.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
+    await prisma.choreSwapRequest.update({ where: { id: swap.id }, data: { status } });
+    if (status === 'accepted') {
+      // Swap the chore assignment
+      await prisma.chore.update({ where: { id: swap.choreId }, data: { assignedTo: swap.toUserId, assignmentStatus: 'accepted' } });
+      await recordHistory(swap.choreId, swap.familyId, req.userId!, 'assigned');
+    }
+    res.json({ success: true });
+  } catch (error) { res.status(500).json({ error: 'Internal server error' }); }
+});
+
 // Smart suggestions based on history patterns (MUST be before /:id routes)
 router.get('/suggestions', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {

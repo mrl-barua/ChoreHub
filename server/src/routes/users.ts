@@ -238,4 +238,25 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise
   }
 });
 
+// Avatar upload
+import multer from 'multer';
+import path from 'path';
+const avatarStorage = multer.diskStorage({
+  destination: path.join(__dirname, '../../uploads'),
+  filename: (_req, file, cb) => cb(null, `avatar-${Date.now()}-${Math.round(Math.random() * 1e6)}${path.extname(file.originalname)}`),
+});
+const avatarUpload = multer({ storage: avatarStorage, limits: { fileSize: 5 * 1024 * 1024 } });
+
+router.post('/me/avatar', authenticate, avatarUpload.single('avatar'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.file) { res.status(400).json({ error: 'No image provided' }); return; }
+    const avatarUrl = `/uploads/${req.file.filename}`;
+    await prisma.user.update({ where: { id: req.userId }, data: { avatarUrl } });
+    res.json({ avatarUrl });
+  } catch (error) {
+    console.error('Avatar upload error:', error);
+    res.status(500).json({ error: 'Upload failed' });
+  }
+});
+
 export default router;

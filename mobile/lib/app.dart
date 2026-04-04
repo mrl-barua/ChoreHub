@@ -18,6 +18,9 @@ import 'screens/family/invitations_screen.dart';
 import 'screens/analytics/analytics_screen.dart';
 import 'screens/chores/calendar_screen.dart';
 import 'screens/family/member_detail_screen.dart';
+import 'screens/family/family_settings_screen.dart';
+import 'screens/family/challenges_screen.dart';
+import 'screens/notifications/notification_screen.dart';
 import 'screens/onboarding/welcome_screen.dart';
 import 'screens/chat/chat_screen.dart';
 import 'screens/profile/profile_screen.dart';
@@ -147,6 +150,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/welcome',
         pageBuilder: (_, state) => _fadeScalePage(const WelcomeScreen(), state),
+      ),
+      GoRoute(
+        path: '/family/settings',
+        pageBuilder: (_, state) => _slideUpPage(const FamilySettingsScreen(), state),
+      ),
+      GoRoute(
+        path: '/family/challenges',
+        pageBuilder: (_, state) => _slideUpPage(const ChallengesScreen(), state),
+      ),
+      GoRoute(
+        path: '/notifications',
+        pageBuilder: (_, state) => _slideUpPage(const NotificationScreen(), state),
       ),
       GoRoute(
         path: '/chores/:id/edit',

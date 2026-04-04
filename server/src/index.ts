@@ -14,6 +14,7 @@ import choreRoutes from './routes/chores';
 import invitationRoutes from './routes/invitations';
 import syncRoutes from './routes/sync';
 import messageRoutes from './routes/messages';
+import notificationRoutes from './routes/notifications';
 
 dotenv.config();
 
@@ -249,6 +250,7 @@ app.use('/api/chores', choreRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });

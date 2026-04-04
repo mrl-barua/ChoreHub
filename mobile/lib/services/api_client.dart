@@ -37,6 +37,8 @@ class ApiClient {
             handler.resolve(response);
             return;
           }
+          // Refresh failed — clear invalid tokens so user gets sent to login
+          await clearTokens();
         }
         handler.next(error);
       },

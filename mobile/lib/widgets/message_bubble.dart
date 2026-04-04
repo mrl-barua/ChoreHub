@@ -5,10 +5,15 @@ import '../config/theme.dart';
 import '../models/message.dart';
 import 'link_preview.dart';
 import 'reaction_picker.dart';
+import 'voice_message_player.dart';
 import 'reply_preview.dart';
 
 class MessageBubble extends StatelessWidget {
   static final _mentionPattern = RegExp(r'@(\w+)');
+  static final _audioExtensions = ['.m4a', '.aac', '.mp3', '.wav', '.ogg'];
+
+  bool _isAudioUrl(String url) => _audioExtensions.any((ext) => url.toLowerCase().endsWith(ext));
+  bool _isVoiceMessage() => message.imageUrl != null && _isAudioUrl(message.imageUrl!);
 
   final Message message;
   final bool isMe;
@@ -180,12 +185,15 @@ class MessageBubble extends StatelessWidget {
                     if (message.replyTo != null)
                       ReplyQuote(replyTo: message.replyTo!, isMe: isMe),
 
+                    // Voice message
+                    if (message.imageUrl != null && _isAudioUrl(message.imageUrl!))
+                      VoiceMessagePlayer(audioUrl: message.imageUrl!, isMe: isMe)
                     // Image
-                    if (message.hasImage)
+                    else if (message.hasImage)
                       _buildImage(context),
 
                     // Message text with mentions highlighted
-                    if (message.text.isNotEmpty && !(message.hasImage && message.text == 'Sent a photo'))
+                    if (message.text.isNotEmpty && !(message.hasImage && message.text == 'Sent a photo') && !_isVoiceMessage())
                       _buildRichText(context),
 
                     // Link preview

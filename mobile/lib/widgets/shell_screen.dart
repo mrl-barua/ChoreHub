@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../config/theme.dart';
 import '../providers/connectivity_provider.dart';
 import '../providers/message_provider.dart';
+import '../providers/notification_provider.dart';
 
 class ShellScreen extends ConsumerWidget {
   final Widget child;
@@ -41,9 +42,12 @@ class ShellScreen extends ConsumerWidget {
     final isOnline = ref.watch(isOnlineProvider);
     final currentIndex = _currentIndex(context);
     final unreadCount = ref.watch(messageProvider).unreadCount;
+    final notifCount = ref.watch(notificationProvider).unreadCount;
 
     return Scaffold(
-      body: Column(
+      body: Stack(
+        children: [
+          Column(
         children: [
           if (!isOnline)
             Container(
@@ -65,6 +69,39 @@ class ShellScreen extends ConsumerWidget {
             ),
           Expanded(child: child),
         ],
+      ),
+      // Notification bell
+      if (notifCount > 0)
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 8,
+          right: 16,
+          child: GestureDetector(
+            onTap: () => context.push('/notifications'),
+            child: Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                shape: BoxShape.circle,
+                boxShadow: AppTheme.shadowMedium,
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(Icons.notifications_rounded, size: 20, color: Colors.white),
+                  Positioned(
+                    top: 6, right: 6,
+                    child: Container(
+                      width: 14, height: 14,
+                      decoration: const BoxDecoration(color: AppTheme.accentRed, shape: BoxShape.circle),
+                      child: Center(child: Text('$notifCount', style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white))),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(

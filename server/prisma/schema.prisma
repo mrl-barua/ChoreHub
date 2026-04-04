@@ -13,6 +13,7 @@ model User {
   displayName String   @map("display_name")
   email       String   @unique
   password    String
+  avatarUrl   String?  @map("avatar_url")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -124,4 +125,45 @@ model MessageReadReceipt {
 
   @@unique([messageId, userId])
   @@map("message_read_receipts")
+}
+
+model FamilyChallenge {
+  id           String   @id @default(uuid())
+  familyId     String   @map("family_id")
+  title        String
+  targetCount  Int      @map("target_count")
+  currentCount Int      @default(0) @map("current_count")
+  startDate    DateTime @map("start_date")
+  endDate      DateTime @map("end_date")
+  createdBy    String   @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("family_challenges")
+}
+
+model ChoreSwapRequest {
+  id         String   @id @default(uuid())
+  choreId    String   @map("chore_id")
+  fromUserId String   @map("from_user_id")
+  toUserId   String   @map("to_user_id")
+  familyId   String   @map("family_id")
+  status     String   @default("pending")
+  message    String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("chore_swap_requests")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  familyId  String   @map("family_id")
+  type      String
+  title     String
+  body      String
+  data      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
 }
