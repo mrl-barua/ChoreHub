@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 import '../models/message.dart';
 
 /// Shows above the input bar when replying to a message
@@ -14,9 +15,9 @@ class ReplyPreviewBar extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF6C63FF).withValues(alpha: 0.08),
+        color: AppTheme.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF6C63FF).withValues(alpha: 0.2)),
+        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -24,7 +25,7 @@ class ReplyPreviewBar extends StatelessWidget {
             width: 3,
             height: 32,
             decoration: BoxDecoration(
-              color: const Color(0xFF6C63FF),
+              color: AppTheme.accent,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -39,7 +40,7 @@ class ReplyPreviewBar extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF6C63FF),
+                    color: AppTheme.accent,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -75,11 +76,11 @@ class ReplyQuote extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: (isMe ? Colors.white : const Color(0xFF6C63FF)).withValues(alpha: 0.1),
+        color: (isMe ? Colors.white : AppTheme.accent).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border(
           left: BorderSide(
-            color: isMe ? Colors.white.withValues(alpha: 0.5) : const Color(0xFF6C63FF),
+            color: isMe ? Colors.white.withValues(alpha: 0.5) : AppTheme.accent,
             width: 3,
           ),
         ),
@@ -92,7 +93,7 @@ class ReplyQuote extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: isMe ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF6C63FF),
+              color: isMe ? Colors.white.withValues(alpha: 0.8) : AppTheme.accent,
             ),
           ),
           const SizedBox(height: 2),

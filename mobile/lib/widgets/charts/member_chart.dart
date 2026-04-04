@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../../config/theme.dart';
 import '../../providers/analytics_provider.dart';
 
 class MemberChart extends StatelessWidget {
@@ -20,7 +21,7 @@ class MemberChart extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final maxX = data.first.count.toDouble() + 1;
     final colors = [
-      const Color(0xFF6C63FF),
+      AppTheme.accent,
       const Color(0xFF00C853),
       const Color(0xFFFF9100),
       const Color(0xFF448AFF),

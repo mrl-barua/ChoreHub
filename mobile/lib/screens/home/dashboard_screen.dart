@@ -191,7 +191,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFF9100).withValues(alpha: 0.12),
+                          color: AppTheme.accentOrange.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -228,7 +228,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 index: 2,
                 child: Row(
                   children: [
-                    Expanded(child: _QuickAction(icon: Icons.add_task_rounded, label: 'New Chore', color: const Color(0xFF6C63FF), onTap: () => context.push('/chores/create'))),
+                    Expanded(child: _QuickAction(icon: Icons.add_task_rounded, label: 'New Chore', color: AppTheme.accent, onTap: () => context.push('/chores/create'))),
                     const SizedBox(width: 10),
                     Expanded(child: _QuickAction(icon: Icons.analytics_rounded, label: 'Analytics', color: AppTheme.accentBlue, onTap: () => context.push('/analytics'))),
                     const SizedBox(width: 10),
@@ -359,7 +359,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C24),
+                        color: AppTheme.surface,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: daysLeft == 0 ? AppTheme.accentRed.withValues(alpha: 0.4) : AppTheme.accentOrange.withValues(alpha: 0.2)),
                       ),

@@ -185,8 +185,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: isDark
-                        ? [const Color(0xFF2A2A40), const Color(0xFF1E1E2A)]
-                        : [const Color(0xFF6C63FF), const Color(0xFF9B59FF)],
+                        ? [AppTheme.surfaceVariant, AppTheme.surfaceLow]
+                        : [AppTheme.accent, AppTheme.accentLight],
                   ),
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -243,7 +243,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         children: [
                           _StatChip(icon: Icons.check_circle_rounded, label: 'Completed', value: '${_stats!['totalCompleted'] ?? 0}', color: AppTheme.accentGreen),
                           const SizedBox(width: 8),
-                          _StatChip(icon: Icons.local_fire_department_rounded, label: 'Streak', value: '${_stats!['currentStreak'] ?? 0}d', color: const Color(0xFFFF9100)),
+                          _StatChip(icon: Icons.local_fire_department_rounded, label: 'Streak', value: '${_stats!['currentStreak'] ?? 0}d', color: AppTheme.accentOrange),
                           const SizedBox(width: 8),
                           _StatChip(icon: Icons.assignment_rounded, label: 'Assigned', value: '${_stats!['totalAssigned'] ?? 0}', color: AppTheme.accentBlue),
                         ],

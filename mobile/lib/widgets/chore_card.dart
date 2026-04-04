@@ -98,7 +98,7 @@ class _ChoreCardState extends State<ChoreCard> with SingleTickerProviderStateMix
           duration: const Duration(milliseconds: 120),
           margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1C24),
+            color: AppTheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: chore.isOverdue
                 ? Border.all(color: AppTheme.accentRed.withValues(alpha: 0.4))

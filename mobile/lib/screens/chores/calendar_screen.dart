@@ -159,7 +159,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1C1C24),
+                            color: AppTheme.surface,
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(color: categoryColor.withValues(alpha: 0.3)),
                           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 import '../models/chore_history.dart';
 
 class ActivityFeed extends StatelessWidget {
@@ -27,17 +28,17 @@ class ActivityFeed extends StatelessWidget {
   Color _actionColor(String action) {
     switch (action) {
       case 'created':
-        return const Color(0xFF448AFF);
+        return AppTheme.accentBlue;
       case 'completed':
-        return const Color(0xFF00C853);
+        return AppTheme.accentGreen;
       case 'assigned':
-        return const Color(0xFF6C63FF);
+        return AppTheme.accent;
       case 'accepted':
-        return const Color(0xFF00C853);
+        return AppTheme.accentGreen;
       case 'declined':
-        return const Color(0xFFFF5252);
+        return AppTheme.accentRed;
       case 'reopened':
-        return const Color(0xFFFF9100);
+        return AppTheme.accentOrange;
       default:
         return Colors.grey;
     }

@@ -61,7 +61,7 @@ class MessageBubble extends StatelessWidget {
     showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, overlay.size.width - position.dx, 0),
-      color: const Color(0xFF2A2A40),
+      color: AppTheme.surfaceVariant,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       items: [
         const PopupMenuItem(value: 'reply', child: _MenuItem(icon: Icons.reply_rounded, label: 'Reply')),
@@ -154,7 +154,7 @@ class MessageBubble extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF6C63FF).withValues(alpha: 0.8),
+                      color: AppTheme.accent.withValues(alpha: 0.8),
                     ),
                   ),
                 ),
@@ -162,8 +162,8 @@ class MessageBubble extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: isMe
-                      ? const Color(0xFF6C63FF)
-                      : const Color(0xFF2A2A40),
+                      ? AppTheme.accent
+                      : AppTheme.surfaceVariant,
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(18),
                     topRight: const Radius.circular(18),
@@ -332,7 +332,7 @@ class MessageBubble extends StatelessWidget {
       );
     }
 
-    final mentionColor = isMe ? Colors.white : const Color(0xFF6C63FF);
+    final mentionColor = isMe ? Colors.white : AppTheme.accent;
     final textColor = isMe ? Colors.white : Colors.white;
 
     final spans = <InlineSpan>[];
@@ -366,10 +366,10 @@ class MessageBubble extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: (isMe ? Colors.white : const Color(0xFF6C63FF)).withValues(alpha: 0.12),
+          color: (isMe ? Colors.white : AppTheme.accent).withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: (isMe ? Colors.white : const Color(0xFF6C63FF)).withValues(alpha: 0.2),
+            color: (isMe ? Colors.white : AppTheme.accent).withValues(alpha: 0.2),
           ),
         ),
         child: Row(
@@ -442,23 +442,23 @@ class MessageBubble extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: (isMe ? Colors.white : const Color(0xFF6C63FF)).withValues(alpha: 0.12),
+          color: (isMe ? Colors.white : AppTheme.accent).withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: (isMe ? Colors.white : const Color(0xFF6C63FF)).withValues(alpha: 0.2),
+            color: (isMe ? Colors.white : AppTheme.accent).withValues(alpha: 0.2),
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.task_rounded, size: 18, color: isMe ? Colors.white70 : const Color(0xFF6C63FF)),
+            Icon(Icons.task_rounded, size: 18, color: isMe ? Colors.white70 : AppTheme.accent),
             const SizedBox(width: 8),
             Text(
               'View chore',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: isMe ? Colors.white : const Color(0xFF6C63FF),
+                color: isMe ? Colors.white : AppTheme.accent,
               ),
             ),
             const SizedBox(width: 4),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -71,14 +72,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         height: 80,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF6C63FF), Color(0xFF9B59FF)],
+                            colors: [AppTheme.accent, AppTheme.accentLight],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
+                              color: AppTheme.accent.withValues(alpha: 0.3),
                               blurRadius: 20,
                               offset: const Offset(0, 8),
                             ),
@@ -147,9 +148,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text("Don't have an account? ", style: TextStyle(color: Colors.grey.shade500)),
-                          GestureDetector(
-                            onTap: () => context.go('/register'),
-                            child: const Text('Sign Up', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF6C63FF))),
+                          TextButton(
+                            onPressed: () => context.go('/register'),
+                            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(48, 36)),
+                            child: const Text('Sign Up', style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.accent)),
                           ),
                         ],
                       ),

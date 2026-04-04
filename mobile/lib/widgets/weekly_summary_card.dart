@@ -18,7 +18,7 @@ class WeeklySummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C24),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(

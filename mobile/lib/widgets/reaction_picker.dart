@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 
 class ReactionPicker extends StatelessWidget {
   final Function(String emoji) onReactionSelected;
@@ -12,7 +13,7 @@ class ReactionPicker extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF2A2A40),
+        color: AppTheme.surfaceVariant,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -67,11 +68,11 @@ class ReactionDisplay extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: hasReacted
-                    ? const Color(0xFF6C63FF).withValues(alpha: 0.2)
+                    ? AppTheme.accent.withValues(alpha: 0.2)
                     : Colors.white.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(12),
                 border: hasReacted
-                    ? Border.all(color: const Color(0xFF6C63FF).withValues(alpha: 0.5))
+                    ? Border.all(color: AppTheme.accent.withValues(alpha: 0.5))
                     : null,
               ),
               child: Row(
@@ -84,7 +85,7 @@ class ReactionDisplay extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: hasReacted ? const Color(0xFF6C63FF) : Colors.grey.shade400,
+                      color: hasReacted ? AppTheme.accent : Colors.grey.shade400,
                     ),
                   ),
                 ],

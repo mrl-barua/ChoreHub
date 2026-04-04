@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -121,9 +122,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text('Already have an account? ', style: TextStyle(color: Colors.grey.shade500)),
-                    GestureDetector(
-                      onTap: () => context.go('/login'),
-                      child: const Text('Sign In', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF6C63FF))),
+                    TextButton(
+                      onPressed: () => context.go('/login'),
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(48, 36)),
+                      child: const Text('Sign In', style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.accent)),
                     ),
                   ],
                 ),

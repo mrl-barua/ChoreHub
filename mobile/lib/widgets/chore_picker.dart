@@ -113,7 +113,7 @@ class _ChorePickerState extends State<ChorePicker> {
                                   Text(chore.isDone ? 'Done' : 'Pending', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                                 ],
                               ),
-                              trailing: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF6C63FF)),
+                              trailing: const Icon(Icons.add_circle_outline_rounded, color: AppTheme.accent),
                               onTap: () {
                                 widget.onSelected(chore);
                                 Navigator.pop(context);

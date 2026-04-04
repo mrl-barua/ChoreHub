@@ -29,6 +29,7 @@ class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
   DateTime? _dueDate;
   String _priority = 'medium';
   String? _recurrence;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -48,20 +49,29 @@ class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate() || _isSubmitting) return;
+    setState(() => _isSubmitting = true);
 
-    await ref.read(choreProvider.notifier).createChore(
-          title: _titleController.text.trim(),
-          category: _category,
-          timeSlot: _timeSlot,
-          assignedTo: _assignedTo,
-          dueDate: _dueDate?.toIso8601String().substring(0, 10),
-          priority: _priority,
-          description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-          recurrence: _recurrence,
+    try {
+      await ref.read(choreProvider.notifier).createChore(
+            title: _titleController.text.trim(),
+            category: _category,
+            timeSlot: _timeSlot,
+            assignedTo: _assignedTo,
+            dueDate: _dueDate?.toIso8601String().substring(0, 10),
+            priority: _priority,
+            description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+            recurrence: _recurrence,
+          );
+      if (mounted) context.pop();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to create chore. Try again.')),
         );
-
-    if (mounted) context.pop();
+      }
+    }
   }
 
   Future<void> _pickDate() async {
@@ -248,8 +258,10 @@ class _CreateChoreScreenState extends ConsumerState<CreateChoreScreen> {
 
               const SizedBox(height: 32),
               FilledButton(
-                onPressed: _submit,
-                child: const Text('Create Chore'),
+                onPressed: _isSubmitting ? null : _submit,
+                child: _isSubmitting
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Create Chore'),
               ),
             ],
           ),

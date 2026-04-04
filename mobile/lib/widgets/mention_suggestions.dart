@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 import '../models/family_member.dart';
 
 class MentionSuggestions extends StatelessWidget {
@@ -17,7 +18,7 @@ class MentionSuggestions extends StatelessWidget {
       constraints: const BoxConstraints(maxHeight: 200),
       margin: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2A2A40) : Colors.white,
+        color: isDark ? AppTheme.surfaceVariant : Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12, offset: const Offset(0, -4)),
@@ -37,8 +38,8 @@ class MentionSuggestions extends StatelessWidget {
             contentPadding: const EdgeInsets.symmetric(horizontal: 14),
             leading: CircleAvatar(
               radius: 16,
-              backgroundColor: const Color(0xFF6C63FF).withValues(alpha: 0.12),
-              child: Text(name[0].toUpperCase(), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF6C63FF))),
+              backgroundColor: AppTheme.accent.withValues(alpha: 0.12),
+              child: Text(name[0].toUpperCase(), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.accent)),
             ),
             title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             subtitle: Text('@$username', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),

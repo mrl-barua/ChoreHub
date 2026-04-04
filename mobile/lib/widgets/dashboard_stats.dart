@@ -21,7 +21,7 @@ class DashboardStats extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1E1E2E), Color(0xFF1C1C24)],
+          colors: [AppTheme.surfaceLow, AppTheme.surface],
         ),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: Colors.white.withValues(alpha: 0.06)),

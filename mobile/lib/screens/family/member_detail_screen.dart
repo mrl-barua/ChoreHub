@@ -57,7 +57,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [Color(0xFF2A2A40), Color(0xFF1E1E2A)]),
+                        gradient: const LinearGradient(colors: [AppTheme.surfaceVariant, AppTheme.surfaceLow]),
                         borderRadius: BorderRadius.circular(18),
                       ),
                       child: Row(
@@ -99,7 +99,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: const Color(0xFF1C1C24), borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: AppTheme.surface, borderRadius: BorderRadius.circular(12)),
                         child: Row(children: [
                           Icon(Icons.star_rounded, size: 16, color: AppTheme.accentOrange),
                           const SizedBox(width: 6),

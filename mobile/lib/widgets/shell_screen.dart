@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../config/theme.dart';
 import '../providers/connectivity_provider.dart';
 import '../providers/message_provider.dart';
 
@@ -19,6 +20,7 @@ class ShellScreen extends ConsumerWidget {
   }
 
   static const _routes = ['/dashboard', '/chores', '/chat', '/family', '/profile'];
+  static const _labels = ['Home', 'Chores', 'Chat', 'Family', 'Profile'];
   static const _icons = [
     Icons.home_rounded,
     Icons.checklist_rounded,
@@ -70,7 +72,7 @@ class ShellScreen extends ConsumerWidget {
           child: Container(
             height: 64,
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A26),
+              color: AppTheme.surfaceLow,
               borderRadius: BorderRadius.circular(32),
               border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
               boxShadow: [
@@ -87,7 +89,11 @@ class ShellScreen extends ConsumerWidget {
                 final isSelected = currentIndex == index;
                 final isChatTab = index == 2;
 
-                return GestureDetector(
+                return Semantics(
+                  label: _labels[index],
+                  button: true,
+                  selected: isSelected,
+                  child: GestureDetector(
                   onTap: () => context.go(_routes[index]),
                   behavior: HitTestBehavior.opaque,
                   child: SizedBox(
@@ -120,7 +126,7 @@ class ShellScreen extends ConsumerWidget {
                               width: 5,
                               height: 5,
                               decoration: const BoxDecoration(
-                                color: Color(0xFF6C63FF),
+                                color: AppTheme.accent,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -133,11 +139,11 @@ class ShellScreen extends ConsumerWidget {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF6C63FF),
+                                color: AppTheme.accent,
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF6C63FF).withValues(alpha: 0.4),
+                                    color: AppTheme.accent.withValues(alpha: 0.4),
                                     blurRadius: 6,
                                   ),
                                 ],
@@ -152,6 +158,7 @@ class ShellScreen extends ConsumerWidget {
                           ),
                       ],
                     ),
+                  ),
                   ),
                 );
               }),

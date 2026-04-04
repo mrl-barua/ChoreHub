@@ -159,13 +159,13 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: isDark
-                        ? [const Color(0xFF2A2A40), const Color(0xFF1E1E2A)]
-                        : [const Color(0xFF6C63FF), const Color(0xFF9B59FF)],
+                        ? [AppTheme.surfaceVariant, AppTheme.surfaceLow]
+                        : [AppTheme.accent, AppTheme.accentLight],
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF6C63FF).withValues(alpha: isDark ? 0.1 : 0.25),
+                      color: AppTheme.accent.withValues(alpha: isDark ? 0.1 : 0.25),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
@@ -227,7 +227,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                     child: _ActionCard(
                       icon: Icons.person_add_rounded,
                       label: 'Invite\nMember',
-                      color: const Color(0xFF6C63FF),
+                      color: AppTheme.accent,
                       onTap: () => context.push('/family/invite'),
                     ),
                   ),
@@ -266,11 +266,11 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
               final assignedCount = memberChoreCount[member.userId] ?? 0;
               final completedCount = memberCompletedCount[member.userId] ?? 0;
               final colors = [
-                const Color(0xFF6C63FF),
-                const Color(0xFF00C853),
-                const Color(0xFFFF9100),
-                const Color(0xFF448AFF),
-                const Color(0xFFAB47BC),
+                AppTheme.accent,
+                AppTheme.accentGreen,
+                AppTheme.accentOrange,
+                AppTheme.accentBlue,
+                AppTheme.accentLight,
               ];
               final avatarColor = colors[entry.key % colors.length];
 
@@ -334,11 +334,11 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF6C63FF).withValues(alpha: 0.1),
+                                      color: AppTheme.accent.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: const Text('Admin',
-                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6C63FF))),
+                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.accent)),
                                   ),
                                 // Show remove button if current user is admin and this is not self
                                 if (currentUserIsAdmin && !isCurrentUser) ...[

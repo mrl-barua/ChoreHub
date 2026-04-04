@@ -532,7 +532,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                       hintText: 'Add a comment...',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                       filled: true,
-                      fillColor: const Color(0xFF2A2A40),
+                      fillColor: AppTheme.surfaceVariant,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       isDense: true,
                     ),

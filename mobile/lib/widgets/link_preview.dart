@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../config/theme.dart';
 
 class LinkPreview extends StatelessWidget {
   final String url;
@@ -29,10 +30,10 @@ class LinkPreview extends StatelessWidget {
         margin: const EdgeInsets.only(top: 6),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: (isMe ? Colors.white : const Color(0xFF6C63FF)).withValues(alpha: 0.1),
+          color: (isMe ? Colors.white : AppTheme.accent).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: (isMe ? Colors.white : const Color(0xFF6C63FF)).withValues(alpha: 0.2),
+            color: (isMe ? Colors.white : AppTheme.accent).withValues(alpha: 0.2),
           ),
         ),
         child: Row(
@@ -41,7 +42,7 @@ class LinkPreview extends StatelessWidget {
             Icon(
               Icons.link_rounded,
               size: 16,
-              color: isMe ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF6C63FF),
+              color: isMe ? Colors.white.withValues(alpha: 0.7) : AppTheme.accent,
             ),
             const SizedBox(width: 8),
             Flexible(
@@ -53,7 +54,7 @@ class LinkPreview extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: isMe ? Colors.white : const Color(0xFF6C63FF),
+                      color: isMe ? Colors.white : AppTheme.accent,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

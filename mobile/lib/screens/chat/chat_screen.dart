@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../config/theme.dart';
 import '../../models/chore.dart';
 import '../../models/family_member.dart';
 import '../../models/message.dart';
@@ -166,7 +167,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _showImageSourcePicker() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1C1C24),
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: Padding(
@@ -440,18 +441,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6C63FF).withValues(alpha: 0.08),
+                    color: AppTheme.accent.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF6C63FF).withValues(alpha: 0.2)),
+                    border: Border.all(color: AppTheme.accent.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.task_rounded, size: 18, color: Color(0xFF6C63FF)),
+                      const Icon(Icons.task_rounded, size: 18, color: AppTheme.accent),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _attachedChore!.title,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF6C63FF)),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.accent),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -491,7 +492,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   bottom: MediaQuery.of(context).padding.bottom + 8,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E2A),
+                  color: AppTheme.surfaceLow,
                   boxShadow: [
                     BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -2)),
                   ],
@@ -502,9 +503,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     PopupMenuButton<String>(
                       icon: Icon(
                         Icons.add_circle_outline_rounded,
-                        color: _attachedChore != null ? const Color(0xFF6C63FF) : Colors.grey,
+                        color: _attachedChore != null ? AppTheme.accent : Colors.grey,
                       ),
-                      color: const Color(0xFF2A2A40),
+                      color: AppTheme.surfaceVariant,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       onSelected: (value) {
                         if (value == 'chore') _showChorePicker();
@@ -531,7 +532,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           hintText: 'Type a message... Use @ to mention',
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                           filled: true,
-                          fillColor: const Color(0xFF2A2A40),
+                          fillColor: AppTheme.surfaceVariant,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         ),
                         textCapitalization: TextCapitalization.sentences,
@@ -544,7 +545,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     const SizedBox(width: 4),
                     // Send button
                     Container(
-                      decoration: const BoxDecoration(color: Color(0xFF6C63FF), shape: BoxShape.circle),
+                      decoration: const BoxDecoration(color: AppTheme.accent, shape: BoxShape.circle),
                       child: IconButton(
                         onPressed: _send,
                         icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
@@ -567,7 +568,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A40),
+                    color: AppTheme.surfaceVariant,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2)),
@@ -584,7 +585,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: const BoxDecoration(
-                              color: Color(0xFF6C63FF),
+                              color: AppTheme.accent,
                               shape: BoxShape.circle,
                             ),
                             child: Text(
@@ -618,12 +619,12 @@ class _ImageSourceOption extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
-          color: const Color(0xFF2A2A40),
+          color: AppTheme.surfaceVariant,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 32, color: const Color(0xFF6C63FF)),
+            Icon(icon, size: 32, color: AppTheme.accent),
             const SizedBox(height: 8),
             Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
           ],

@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../../config/theme.dart';
 import '../../providers/analytics_provider.dart';
 
 class CompletionTrendChart extends StatelessWidget {
@@ -63,17 +64,17 @@ class CompletionTrendChart extends StatelessWidget {
                     LineChartBarData(
                       spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.rate)).toList(),
                       isCurved: true,
-                      color: const Color(0xFF6C63FF),
+                      color: AppTheme.accent,
                       barWidth: 3,
                       isStrokeCapRound: true,
                       dotData: FlDotData(
                         show: true,
                         getDotPainter: (spot, percent, barData, index) =>
-                            FlDotCirclePainter(radius: 4, color: const Color(0xFF6C63FF), strokeWidth: 2, strokeColor: Colors.white),
+                            FlDotCirclePainter(radius: 4, color: AppTheme.accent, strokeWidth: 2, strokeColor: Colors.white),
                       ),
                       belowBarData: BarAreaData(
                         show: true,
-                        color: const Color(0xFF6C63FF).withValues(alpha: 0.1),
+                        color: AppTheme.accent.withValues(alpha: 0.1),
                       ),
                     ),
                   ],

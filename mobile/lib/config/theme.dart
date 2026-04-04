@@ -23,15 +23,40 @@ class AppTheme {
     'other': Color(0xFF8E8E93),
   };
 
+  // Additional accents
+  static const Color accentLight = Color(0xFF9B59FF);  // gradients
+
+  // Text colors
+  static const Color textPrimary = Colors.white;
+  static const Color textSecondary = Color(0xFFAAAAAA);
+  static const Color textMuted = Color(0xFF888888);
+
+  // Border
+  static const Color border = Color(0x0AFFFFFF); // white 4%
+
   // Dark surfaces — 3 elevation levels
   static const Color bg = Color(0xFF0F0F14);
-  static const Color surfaceLow = Color(0xFF151519);     // recessed/background cards
-  static const Color surface = Color(0xFF1C1C24);         // default cards
-  static const Color surfaceHigh = Color(0xFF252533);     // elevated/interactive cards
-  static const Color surfaceVariant = Color(0xFF2A2A40);  // inputs/active surfaces
+  static const Color surfaceLow = Color(0xFF151519);
+  static const Color surface = Color(0xFF1C1C24);
+  static const Color surfaceHigh = Color(0xFF252533);
+  static const Color surfaceVariant = Color(0xFF2A2A40);
   static const Color _bg = bg;
   static const Color _card = surface;
   static const Color _cardLight = surfaceHigh;
+
+  // Border radius scale
+  static const double radiusS = 8;   // badges, small chips
+  static const double radiusM = 14;  // buttons, inputs, icons
+  static const double radiusL = 18;  // cards, modals
+  static const double radiusXL = 24; // pills, nav, filter chips
+
+  // Typography scale
+  static const double fontXS = 10;   // badges, tiny labels
+  static const double fontS = 12;    // metadata, captions
+  static const double fontM = 14;    // body, subtitles
+  static const double fontL = 16;    // section headers, buttons
+  static const double fontXL = 20;   // screen titles, names
+  static const double fontXXL = 26;  // hero numbers
 
   // Shadows
   static List<BoxShadow> get shadowSmall => [

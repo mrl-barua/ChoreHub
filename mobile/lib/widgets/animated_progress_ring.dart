@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 
 class AnimatedProgressRing extends StatefulWidget {
   final double progress;
@@ -14,7 +15,7 @@ class AnimatedProgressRing extends StatefulWidget {
     required this.progress,
     this.size = 120,
     this.strokeWidth = 10,
-    this.color = const Color(0xFF6C63FF),
+    this.color = AppTheme.accent,
     this.backgroundColor = const Color(0xFFE0E0E0),
     this.center,
   });
