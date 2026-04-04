@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,16 +39,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   List<String> _mentionedUserIds = [];
   final _imagePicker = ImagePicker();
   bool _isUploading = false;
+  Timer? _mentionDebounce;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
     _textController.addListener(_onTextChanged);
+
+    // Listen for new messages — auto scroll and mark read
+    ref.listenManual(messageProvider, (prev, next) {
+      if (_isAtBottom && (prev?.messages.length ?? 0) < next.messages.length) {
+        Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+      }
+      if (_isAtBottom) {
+        Future.delayed(const Duration(milliseconds: 500), _markVisibleAsRead);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _mentionDebounce?.cancel();
     _textController.dispose();
     _searchController.dispose();
     _scrollController.dispose();
@@ -71,6 +84,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _onTextChanged() {
+    _mentionDebounce?.cancel();
+    _mentionDebounce = Timer(const Duration(milliseconds: 150), _processMentions);
+  }
+
+  void _processMentions() {
     final text = _textController.text;
     final cursorPos = _textController.selection.baseOffset;
     if (cursorPos < 0) return;
@@ -286,16 +304,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     for (final m in family.members) {
       memberNames[m.userId] = m.user?.displayName ?? 'Unknown';
     }
-
-    ref.listen(messageProvider, (prev, next) {
-      if (_isAtBottom && (prev?.messages.length ?? 0) < next.messages.length) {
-        Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
-      }
-      // Auto mark as read when at bottom
-      if (_isAtBottom) {
-        Future.delayed(const Duration(milliseconds: 500), _markVisibleAsRead);
-      }
-    });
 
     final typingNames = messages.typingUserIds
         .map((id) => memberNames[id] ?? 'Someone')

@@ -30,9 +30,8 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _loadChore();
-    _loadHistory();
-    _loadComments();
+    // Load all data in parallel
+    Future.wait([_loadChore(), _loadHistory(), _loadComments()]);
   }
 
   @override

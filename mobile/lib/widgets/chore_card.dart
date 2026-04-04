@@ -22,9 +22,7 @@ class ChoreCard extends StatefulWidget {
   State<ChoreCard> createState() => _ChoreCardState();
 }
 
-class _ChoreCardState extends State<ChoreCard> with SingleTickerProviderStateMixin {
-  late final AnimationController _checkController;
-  late final Animation<double> _checkScale;
+class _ChoreCardState extends State<ChoreCard> {
   bool _isPressed = false;
 
   Chore get chore => widget.chore;
@@ -34,28 +32,6 @@ class _ChoreCardState extends State<ChoreCard> with SingleTickerProviderStateMix
           ? AppTheme.priorityLow
           : AppTheme.priorityMedium;
   Color get _categoryColor => AppTheme.categoryColors[chore.category] ?? AppTheme.categoryColors['other']!;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-    _checkScale = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _checkController, curve: Curves.elasticOut));
-    if (chore.isDone) _checkController.value = 1.0;
-  }
-
-  @override
-  void didUpdateWidget(ChoreCard old) {
-    super.didUpdateWidget(old);
-    if (old.chore.isDone != chore.isDone) {
-      chore.isDone ? _checkController.forward() : _checkController.reverse();
-    }
-  }
-
-  @override
-  void dispose() {
-    _checkController.dispose();
-    super.dispose();
-  }
 
   IconData _categoryIcon() {
     switch (chore.category) {
@@ -119,28 +95,28 @@ class _ChoreCardState extends State<ChoreCard> with SingleTickerProviderStateMix
                     padding: const EdgeInsets.fromLTRB(12, 14, 16, 14),
                     child: Row(
                       children: [
-                        // Animated checkbox
+                        // Animated checkbox (no controller needed)
                         GestureDetector(
                           onTap: widget.onToggle,
-                          child: AnimatedBuilder(
-                            animation: _checkScale,
-                            builder: (context, _) {
+                          child: TweenAnimationBuilder<double>(
+                            tween: Tween(begin: chore.isDone ? 1.0 : 0.0, end: chore.isDone ? 1.0 : 0.0),
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.elasticOut,
+                            builder: (context, value, _) {
                               return Container(
                                 width: 28,
                                 height: 28,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: chore.isDone
-                                      ? AppTheme.accentGreen.withValues(alpha: _checkScale.value)
-                                      : Colors.transparent,
+                                  color: AppTheme.accentGreen.withValues(alpha: value),
                                   border: Border.all(
-                                    color: chore.isDone ? AppTheme.accentGreen : Colors.grey.shade600,
+                                    color: value > 0.5 ? AppTheme.accentGreen : Colors.grey.shade600,
                                     width: 2,
                                   ),
                                 ),
-                                child: chore.isDone
+                                child: value > 0.3
                                     ? Transform.scale(
-                                        scale: _checkScale.value,
+                                        scale: value,
                                         child: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
                                       )
                                     : null,

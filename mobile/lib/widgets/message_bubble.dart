@@ -8,6 +8,8 @@ import 'reaction_picker.dart';
 import 'reply_preview.dart';
 
 class MessageBubble extends StatelessWidget {
+  static final _mentionPattern = RegExp(r'@(\w+)');
+
   final Message message;
   final bool isMe;
   final bool showName;
@@ -288,6 +290,8 @@ class MessageBubble extends StatelessWidget {
           child: Image.network(
             ApiConfig.imageUrl(message.imageUrl),
             fit: BoxFit.cover,
+            cacheWidth: 500,
+            cacheHeight: 500,
             loadingBuilder: (context, child, progress) {
               if (progress == null) return child;
               return Container(
@@ -336,7 +340,7 @@ class MessageBubble extends StatelessWidget {
     final textColor = isMe ? Colors.white : Colors.white;
 
     final spans = <InlineSpan>[];
-    final pattern = RegExp(r'@(\w+)');
+    final pattern = _mentionPattern;
     int lastEnd = 0;
 
     for (final match in pattern.allMatches(text)) {

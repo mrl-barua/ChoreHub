@@ -43,6 +43,12 @@ class _EmptyStateState extends State<EmptyState>
   }
 
   @override
+  void deactivate() {
+    _floatController.stop(); // Stop animation when widget leaves screen
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
     _entranceController.dispose();
     _floatController.dispose();
