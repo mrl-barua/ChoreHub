@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/api_config.dart';
 
@@ -56,7 +57,8 @@ class ApiClient {
 
       await _storage.write(key: 'access_token', value: response.data['accessToken']);
       return true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[ApiClient] Token refresh failed: $e');
       return false;
     }
   }

@@ -49,28 +49,35 @@ class SocketService {
     });
 
     _socket!.on('new_message', (data) {
-      final message = Message.fromJson(data as Map<String, dynamic>);
-      _messageController.add(message);
+      try {
+        final message = Message.fromJson(data as Map<String, dynamic>);
+        _messageController.add(message);
+      } catch (e) { AppLogger.error('Socket', 'Parse new_message: $e'); }
     });
 
     _socket!.on('user_typing', (data) {
-      _typingController.add(data['userId'] as String);
+      try { _typingController.add(data['userId'] as String); }
+      catch (e) { AppLogger.error('Socket', 'Parse typing: $e'); }
     });
 
     _socket!.on('user_stop_typing', (data) {
-      _stopTypingController.add(data['userId'] as String);
+      try { _stopTypingController.add(data['userId'] as String); }
+      catch (e) { AppLogger.error('Socket', 'Parse stop_typing: $e'); }
     });
 
     _socket!.on('reaction_updated', (data) {
-      _reactionController.add(data as Map<String, dynamic>);
+      try { _reactionController.add(data as Map<String, dynamic>); }
+      catch (e) { AppLogger.error('Socket', 'Parse reaction: $e'); }
     });
 
     _socket!.on('messages_read', (data) {
-      _readReceiptController.add(data as Map<String, dynamic>);
+      try { _readReceiptController.add(data as Map<String, dynamic>); }
+      catch (e) { AppLogger.error('Socket', 'Parse read_receipt: $e'); }
     });
 
     _socket!.on('message_deleted', (data) {
-      _deleteController.add(data['messageId'] as String);
+      try { _deleteController.add(data['messageId'] as String); }
+      catch (e) { AppLogger.error('Socket', 'Parse delete: $e'); }
     });
 
     _socket!.onDisconnect((_) {

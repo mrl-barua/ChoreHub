@@ -106,6 +106,7 @@ class FamilyNotifier extends Notifier<FamilyState> {
       await loadFamilies();
     } catch (e) {
       debugPrint('[Family] Create failed: $e');
+      rethrow;
     }
   }
 

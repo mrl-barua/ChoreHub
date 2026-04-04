@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
@@ -27,20 +28,24 @@ class AuthNotifier extends Notifier<AuthState> {
     return AuthState(isLoading: true);
   }
 
+  void _invalidateAll() {
+    ref.invalidate(familyProvider);
+    ref.invalidate(choreProvider);
+    ref.invalidate(invitationProvider);
+    ref.invalidate(messageProvider);
+  }
+
   Future<void> _loadCurrentUser() async {
     try {
       final user = await _authService.getCurrentUser();
       if (user != null) {
         state = AuthState(user: user);
-        // Invalidate all providers so they fetch fresh from server
-        ref.invalidate(familyProvider);
-        ref.invalidate(choreProvider);
-        ref.invalidate(invitationProvider);
-        ref.invalidate(messageProvider);
+        _invalidateAll();
       } else {
         state = AuthState();
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Auth] Load current user failed: $e');
       state = AuthState();
     }
   }
@@ -50,11 +55,7 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final user = await _authService.login(email: email, password: password);
       state = AuthState(user: user);
-      // All providers will fetch from server when invalidated
-      ref.invalidate(familyProvider);
-      ref.invalidate(choreProvider);
-      ref.invalidate(invitationProvider);
-      ref.invalidate(messageProvider);
+      _invalidateAll();
     } catch (e) {
       state = AuthState(error: _extractError(e));
     }
@@ -75,10 +76,7 @@ class AuthNotifier extends Notifier<AuthState> {
         password: password,
       );
       state = AuthState(user: user);
-      ref.invalidate(familyProvider);
-      ref.invalidate(choreProvider);
-      ref.invalidate(invitationProvider);
-      ref.invalidate(messageProvider);
+      _invalidateAll();
     } catch (e) {
       state = AuthState(error: _extractError(e));
     }
@@ -87,10 +85,7 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> logout() async {
     SocketService().disconnect();
     await _authService.logout();
-    ref.invalidate(familyProvider);
-    ref.invalidate(choreProvider);
-    ref.invalidate(invitationProvider);
-    ref.invalidate(messageProvider);
+    _invalidateAll();
     state = AuthState();
   }
 

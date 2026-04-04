@@ -67,7 +67,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
       try {
         final statsResp = await _apiClient.dio.get('/chores/stats', queryParameters: {'familyId': family.id});
         stats = Map<String, int>.from(statsResp.data);
-      } catch (_) {}
+      } catch (e) { debugPrint('[Chores] Stats failed: $e'); }
 
       // Apply local filter
       List<Chore> filtered;
@@ -147,6 +147,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
       await loadChores();
     } catch (e) {
       debugPrint('[Chores] Create failed: $e');
+      rethrow;
     }
   }
 
@@ -158,6 +159,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
       await loadChores();
     } catch (e) {
       debugPrint('[Chores] Toggle failed: $e');
+      rethrow;
     }
   }
 
@@ -171,6 +173,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
       await loadChores();
     } catch (e) {
       debugPrint('[Chores] Update failed: $e');
+      rethrow;
     }
   }
 
@@ -180,6 +183,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
       await loadChores();
     } catch (e) {
       debugPrint('[Chores] Delete failed: $e');
+      rethrow;
     }
   }
 
