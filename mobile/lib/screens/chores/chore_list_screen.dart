@@ -31,6 +31,22 @@ class _ChoreListScreenState extends ConsumerState<ChoreListScreen> {
     final family = ref.watch(familyProvider);
     final chores = ref.watch(choreProvider);
 
+    if (family.currentFamily == null && family.hasLoadError) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Chores')),
+        body: EmptyState(
+          icon: Icons.wifi_off_rounded,
+          title: 'Connection Problem',
+          subtitle: 'Could not load your data. Check your internet connection and try again.',
+          action: FilledButton.icon(
+            onPressed: () => ref.read(familyProvider.notifier).loadFamilies(),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Retry'),
+          ),
+        ),
+      );
+    }
+
     if (family.currentFamily == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Chores')),

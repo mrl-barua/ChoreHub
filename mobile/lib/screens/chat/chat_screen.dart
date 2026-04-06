@@ -300,6 +300,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final messages = ref.watch(messageProvider);
     final currentUser = ref.watch(authProvider).user;
 
+    if (family.currentFamily == null && family.hasLoadError) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Chat')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.wifi_off_rounded, size: 48, color: Colors.grey.shade600),
+              const SizedBox(height: 16),
+              const Text('Connection Problem', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Text('Could not load chat. Check your connection.',
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: () => ref.read(familyProvider.notifier).loadFamilies(),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final memberNames = <String, String>{};
     for (final m in family.members) {
       memberNames[m.userId] = m.user?.displayName ?? 'Unknown';

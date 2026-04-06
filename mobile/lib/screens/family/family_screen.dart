@@ -104,6 +104,22 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     final memberChoreCount = family.memberChoreCount;
     final memberCompletedCount = family.memberCompletedCount;
 
+    if (family.currentFamily == null && family.hasLoadError) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Family')),
+        body: EmptyState(
+          icon: Icons.wifi_off_rounded,
+          title: 'Connection Problem',
+          subtitle: 'Could not load your family data. Check your internet connection and try again.',
+          action: FilledButton.icon(
+            onPressed: () => ref.read(familyProvider.notifier).loadFamilies(),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Retry'),
+          ),
+        ),
+      );
+    }
+
     if (family.currentFamily == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Family')),
