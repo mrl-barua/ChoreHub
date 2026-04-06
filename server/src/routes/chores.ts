@@ -332,6 +332,100 @@ router.get(
   },
 );
 
+// Get comments for a chore
+router.get(
+  "/:id/comments",
+  authenticate,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const chore = await prisma.chore.findUnique({ where: { id } });
+      if (!chore) {
+        res.status(404).json({ error: "Chore not found" });
+        return;
+      }
+      if (!(await verifyFamilyMembership(req.userId!, chore.familyId))) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
+      const comments = await prisma.choreComment.findMany({
+        where: { choreId: id },
+        orderBy: { createdAt: "asc" },
+      });
+
+      const userIds = Array.from(
+        new Set(comments.map((c: any) => c.userId)),
+      ) as string[];
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, displayName: true },
+      });
+
+      const result = comments.map((c: any) => ({
+        ...c,
+        createdAt: c.createdAt.toISOString(),
+        userName:
+          users.find((u) => u.id === c.userId)?.displayName || "Unknown",
+      }));
+
+      res.json(result);
+    } catch (error) {
+      console.error("Get comments error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+// Post a comment on a chore
+router.post(
+  "/:id/comments",
+  authenticate,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const { text } = req.body;
+
+      if (!text || !text.trim()) {
+        res.status(400).json({ error: "text is required" });
+        return;
+      }
+
+      const chore = await prisma.chore.findUnique({ where: { id } });
+      if (!chore) {
+        res.status(404).json({ error: "Chore not found" });
+        return;
+      }
+      if (!(await verifyFamilyMembership(req.userId!, chore.familyId))) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
+      const comment = await prisma.choreComment.create({
+        data: {
+          choreId: id,
+          userId: req.userId!,
+          text: text.trim(),
+        },
+      });
+
+      const user = await prisma.user.findUnique({
+        where: { id: req.userId! },
+        select: { displayName: true },
+      });
+
+      res.status(201).json({
+        ...comment,
+        createdAt: comment.createdAt.toISOString(),
+        userName: user?.displayName || "Unknown",
+      });
+    } catch (error) {
+      console.error("Post comment error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
 // Get chore stats for a family
 router.get(
   "/stats",

@@ -51,7 +51,9 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
       final response = await ApiClient().dio.get('/chores/${widget.choreId}/comments');
       final comments = (response.data as List).map((c) => ChoreComment.fromJson(c)).toList();
       if (mounted) setState(() => _comments = comments);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to load comments: $e');
+    }
   }
 
   Future<void> _postComment() async {
@@ -62,7 +64,14 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
       final response = await ApiClient().dio.post('/chores/${widget.choreId}/comments', data: {'text': text});
       final comment = ChoreComment.fromJson(response.data);
       if (mounted) setState(() => _comments = [..._comments, comment]);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to post comment: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to post comment')),
+        );
+      }
+    }
   }
 
   Future<void> _loadHistory() async {
