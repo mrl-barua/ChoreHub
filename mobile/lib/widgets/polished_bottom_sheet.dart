@@ -12,9 +12,9 @@ Future<T?> showPolishedBottomSheet<T>({
     isScrollControlled: isScrollControlled,
     backgroundColor: Colors.transparent,
     builder: (ctx) => Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: Theme.of(ctx).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -41,7 +41,7 @@ Future<T?> showPolishedBottomSheet<T>({
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade700,
+                color: Theme.of(ctx).dividerColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),

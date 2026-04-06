@@ -70,7 +70,7 @@ class CompletionTrendChart extends StatelessWidget {
                       dotData: FlDotData(
                         show: true,
                         getDotPainter: (spot, percent, barData, index) =>
-                            FlDotCirclePainter(radius: 4, color: AppTheme.accent, strokeWidth: 2, strokeColor: Colors.white),
+                            FlDotCirclePainter(radius: 4, color: AppTheme.accent, strokeWidth: 2, strokeColor: Theme.of(context).scaffoldBackgroundColor),
                       ),
                       belowBarData: BarAreaData(
                         show: true,

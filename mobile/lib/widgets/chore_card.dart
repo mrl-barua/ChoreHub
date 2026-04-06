@@ -46,11 +46,11 @@ class _ChoreCardState extends State<ChoreCard> {
           duration: const Duration(milliseconds: 120),
           margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
-            color: AppTheme.surface,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: chore.isOverdue
                 ? Border.all(color: AppTheme.accentRed.withValues(alpha: 0.4))
-                : Border.all(color: Colors.white.withValues(alpha: 0.04)),
+                : Border.all(color: AppTheme.borderSubtle(context)),
             boxShadow: _isPressed
                 ? []
                 : [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))],
@@ -114,7 +114,7 @@ class _ChoreCardState extends State<ChoreCard> {
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                   decoration: chore.isDone ? TextDecoration.lineThrough : null,
-                                  color: chore.isDone ? Colors.grey.shade600 : Colors.white,
+                                  color: chore.isDone ? Colors.grey.shade600 : Theme.of(context).colorScheme.onSurface,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,

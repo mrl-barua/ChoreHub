@@ -106,7 +106,7 @@ class _FamilySettingsScreenState extends ConsumerState<FamilySettingsScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: m.role == 'admin' ? AppTheme.accent.withValues(alpha: 0.15) : AppTheme.surfaceVariant,
+                    color: m.role == 'admin' ? AppTheme.accent.withValues(alpha: 0.15) : Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(

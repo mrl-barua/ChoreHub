@@ -84,7 +84,7 @@ class NotificationScreen extends ConsumerWidget {
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: n.read ? AppTheme.surface : AppTheme.surfaceHigh,
+                            color: n.read ? Theme.of(context).colorScheme.surface : Theme.of(context).colorScheme.surfaceContainerHigh,
                             borderRadius: BorderRadius.circular(14),
                             border: n.read ? null : Border.all(color: color.withValues(alpha: 0.2)),
                           ),

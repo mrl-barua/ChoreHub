@@ -65,7 +65,10 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [AppTheme.surfaceVariant, AppTheme.surfaceLow]),
+                        gradient: LinearGradient(colors: [
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                          Theme.of(context).colorScheme.surface,
+                        ]),
                         borderRadius: BorderRadius.circular(18),
                       ),
                       child: Row(
@@ -73,14 +76,14 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                           CircleAvatar(
                             radius: 30,
                             backgroundColor: AppTheme.accent.withValues(alpha: 0.3),
-                            child: Text(displayName[0].toUpperCase(), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white)),
+                            child: Text(displayName[0].toUpperCase(), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
                           ),
                           const SizedBox(width: 16),
                           Expanded(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(displayName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)),
-                              Text('@$username', style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
+                              Text(displayName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
+                              Text('@$username', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
                             ],
                           )),
                           if (role == 'admin')
@@ -106,7 +109,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: AppTheme.surface, borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12)),
                         child: Row(children: [
                           Icon(Icons.star_rounded, size: 16, color: AppTheme.accentOrange),
                           const SizedBox(width: 6),

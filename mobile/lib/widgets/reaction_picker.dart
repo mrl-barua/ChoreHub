@@ -13,7 +13,7 @@ class ReactionPicker extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -69,7 +69,7 @@ class ReactionDisplay extends StatelessWidget {
               decoration: BoxDecoration(
                 color: hasReacted
                     ? AppTheme.accent.withValues(alpha: 0.2)
-                    : Colors.white.withValues(alpha: 0.06),
+                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(12),
                 border: hasReacted
                     ? Border.all(color: AppTheme.accent.withValues(alpha: 0.5))

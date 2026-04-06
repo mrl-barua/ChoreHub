@@ -57,7 +57,7 @@ class MessageBubble extends StatelessWidget {
     showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, overlay.size.width - position.dx, 0),
-      color: AppTheme.surfaceVariant,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       items: [
         const PopupMenuItem(value: 'reply', child: _MenuItem(icon: Icons.reply_rounded, label: 'Reply')),
@@ -159,7 +159,7 @@ class MessageBubble extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isMe
                       ? AppTheme.accent
-                      : AppTheme.surfaceVariant,
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(18),
                     topRight: const Radius.circular(18),
@@ -295,7 +295,7 @@ class MessageBubble extends StatelessWidget {
                 width: 200,
                 height: 150,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
@@ -306,7 +306,7 @@ class MessageBubble extends StatelessWidget {
                 width: 200,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(Icons.broken_image_rounded, color: Colors.grey.shade600, size: 32),
@@ -322,19 +322,21 @@ class MessageBubble extends StatelessWidget {
     final text = message.text;
     final mentionIds = message.mentionedUserIds;
 
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+
     if (mentionIds.isEmpty) {
       return Text(
         text,
         style: TextStyle(
           fontSize: 15,
-          color: isMe ? Colors.white : Colors.white,
+          color: isMe ? Colors.white : onSurface,
           height: 1.3,
         ),
       );
     }
 
     final mentionColor = isMe ? Colors.white : AppTheme.accent;
-    final textColor = isMe ? Colors.white : Colors.white;
+    final textColor = isMe ? Colors.white : onSurface;
 
     final spans = <InlineSpan>[];
     final pattern = _mentionPattern;
@@ -395,7 +397,7 @@ class MessageBubble extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: isMe ? Colors.white : Colors.white,
+                      color: isMe ? Colors.white : Theme.of(context).colorScheme.onSurface,
                       decoration: isDone ? TextDecoration.lineThrough : null,
                     ),
                     maxLines: 1,
@@ -480,7 +482,7 @@ class _MenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isDestructive ? AppTheme.accentRed : Colors.white;
+    final color = isDestructive ? AppTheme.accentRed : Theme.of(context).colorScheme.onSurface;
     return Row(
       children: [
         Icon(icon, size: 18, color: color),

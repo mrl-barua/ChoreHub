@@ -379,7 +379,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                                 decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
                                 child: Icon(CategoryHelpers.historyActionIcon(h.action), size: 14, color: color),
                               ),
-                              if (!isLast) Expanded(child: Container(width: 2, color: Colors.grey.shade800)),
+                              if (!isLast) Expanded(child: Container(width: 2, color: Theme.of(context).dividerColor)),
                             ],
                           ),
                         ),
@@ -391,7 +391,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 RichText(text: TextSpan(
-                                  style: TextStyle(fontSize: 13, color: Colors.grey.shade300),
+                                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
                                   children: [
                                     TextSpan(text: h.userName ?? 'Someone', style: const TextStyle(fontWeight: FontWeight.w600)),
                                     TextSpan(text: ' $actionLabel'),
@@ -474,7 +474,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                       hintText: 'Add a comment...',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                       filled: true,
-                      fillColor: AppTheme.surfaceVariant,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       isDense: true,
                     ),

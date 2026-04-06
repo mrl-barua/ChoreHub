@@ -61,7 +61,7 @@ class _FilterChip extends StatelessWidget {
           color: isSelected ? AppTheme.accent.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isSelected ? AppTheme.accent : Colors.grey.shade700,
+            color: isSelected ? AppTheme.accent : Theme.of(context).dividerColor,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -79,7 +79,7 @@ class _FilterChip extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? Colors.white : Colors.grey.shade400,
+                color: isSelected ? Theme.of(context).colorScheme.onSurface : Colors.grey.shade400,
               ),
             ),
           ],

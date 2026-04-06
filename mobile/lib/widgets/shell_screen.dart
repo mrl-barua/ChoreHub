@@ -43,6 +43,7 @@ class ShellScreen extends ConsumerWidget {
     final currentIndex = _currentIndex(context);
     final unreadCount = ref.watch(messageProvider).unreadCount;
     final notifCount = ref.watch(notificationProvider).unreadCount;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       body: Stack(
@@ -70,7 +71,6 @@ class ShellScreen extends ConsumerWidget {
           Expanded(child: child),
         ],
       ),
-      // Notification bell
       if (notifCount > 0)
         Positioned(
           top: MediaQuery.of(context).padding.top + 8,
@@ -80,14 +80,14 @@ class ShellScreen extends ConsumerWidget {
             child: Container(
               width: 40, height: 40,
               decoration: BoxDecoration(
-                color: AppTheme.surface,
+                color: colorScheme.surface,
                 shape: BoxShape.circle,
                 boxShadow: AppTheme.shadowMedium,
               ),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  const Icon(Icons.notifications_rounded, size: 20, color: Colors.white),
+                  Icon(Icons.notifications_rounded, size: 20, color: colorScheme.onSurface),
                   Positioned(
                     top: 6, right: 6,
                     child: Container(
@@ -109,9 +109,9 @@ class ShellScreen extends ConsumerWidget {
           child: Container(
             height: 64,
             decoration: BoxDecoration(
-              color: AppTheme.surfaceLow,
+              color: colorScheme.surface,
               borderRadius: BorderRadius.circular(32),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+              border: Border.all(color: AppTheme.borderSubtle(context)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.25),
@@ -139,7 +139,6 @@ class ShellScreen extends ConsumerWidget {
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Icon with scale animation
                         AnimatedScale(
                           scale: isSelected ? 1.1 : 1.0,
                           duration: const Duration(milliseconds: 200),
@@ -150,11 +149,10 @@ class ShellScreen extends ConsumerWidget {
                             child: Icon(
                               isSelected ? _icons[index] : _outlinedIcons[index],
                               size: 24,
-                              color: Colors.white,
+                              color: colorScheme.onSurface,
                             ),
                           ),
                         ),
-                        // Active indicator dot
                         if (isSelected)
                           Positioned(
                             bottom: 4,
@@ -168,7 +166,6 @@ class ShellScreen extends ConsumerWidget {
                               ),
                             ),
                           ),
-                        // Unread badge on chat tab
                         if (isChatTab && unreadCount > 0 && !isSelected)
                           Positioned(
                             top: 6,

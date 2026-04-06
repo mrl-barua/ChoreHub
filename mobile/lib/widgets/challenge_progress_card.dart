@@ -63,7 +63,7 @@ class ChallengeProgressCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 10,
-              backgroundColor: Colors.white.withValues(alpha: 0.06),
+              backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
               valueColor: AlwaysStoppedAnimation(isComplete ? AppTheme.accentGreen : AppTheme.accent),
             ),
           ),

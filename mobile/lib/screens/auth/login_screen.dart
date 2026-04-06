@@ -75,20 +75,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       floatingLabelBehavior: FloatingLabelBehavior.never,
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
-      filled: true,
-      fillColor: AppTheme.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusM),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusM),
-        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusM),
-        borderSide: const BorderSide(color: AppTheme.accent, width: 1.5),
-      ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusM),
         borderSide: const BorderSide(color: Colors.redAccent),
@@ -181,7 +167,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           'Sign in to manage your family chores',
                           style: TextStyle(
                             fontSize: 15,
-                            color: Colors.white.withValues(alpha: 0.5),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -309,7 +295,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           children: [
                             Text(
                               "Don't have an account? ",
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
                             ),
                             TextButton(
                               onPressed: () => context.go('/register'),

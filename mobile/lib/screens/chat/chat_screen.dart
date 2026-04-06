@@ -185,7 +185,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _showImageSourcePicker() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: Padding(
@@ -193,7 +193,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Send Photo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+              Text('Send Photo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
               const SizedBox(height: 20),
               Row(
                 children: [
@@ -348,7 +348,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               title: TextField(
                 controller: _searchController,
                 autofocus: true,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 16),
                 decoration: InputDecoration(
                   hintText: 'Search messages...',
                   hintStyle: TextStyle(color: Colors.grey.shade500),
@@ -504,7 +504,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Row(
@@ -525,7 +525,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   bottom: MediaQuery.of(context).padding.bottom + 8,
                 ),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceLow,
+                  color: Theme.of(context).colorScheme.surface,
                   boxShadow: [
                     BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -2)),
                   ],
@@ -538,22 +538,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         Icons.add_circle_outline_rounded,
                         color: _attachedChore != null ? AppTheme.accent : Colors.grey,
                       ),
-                      color: AppTheme.surfaceVariant,
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       onSelected: (value) {
                         if (value == 'chore') _showChorePicker();
                         if (value == 'photo') _showImageSourcePicker();
                       },
                       itemBuilder: (context) => [
-                        const PopupMenuItem(value: 'photo', child: Row(children: [
-                          Icon(Icons.photo_rounded, size: 18, color: Colors.white70),
-                          SizedBox(width: 10),
-                          Text('Photo', style: TextStyle(color: Colors.white)),
+                        PopupMenuItem(value: 'photo', child: Row(children: [
+                          Icon(Icons.photo_rounded, size: 18, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                          const SizedBox(width: 10),
+                          Text('Photo', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
                         ])),
-                        const PopupMenuItem(value: 'chore', child: Row(children: [
-                          Icon(Icons.task_rounded, size: 18, color: Colors.white70),
-                          SizedBox(width: 10),
-                          Text('Chore', style: TextStyle(color: Colors.white)),
+                        PopupMenuItem(value: 'chore', child: Row(children: [
+                          Icon(Icons.task_rounded, size: 18, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+                          const SizedBox(width: 10),
+                          Text('Chore', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
                         ])),
                       ],
                     ),
@@ -565,7 +565,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           hintText: 'Type a message... Use @ to mention',
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                           filled: true,
-                          fillColor: AppTheme.surfaceVariant,
+                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         ),
                         textCapitalization: TextCapitalization.sentences,
@@ -601,7 +601,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppTheme.surfaceVariant,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2)),
@@ -610,7 +610,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 24),
+                      Icon(Icons.keyboard_arrow_down_rounded, color: Theme.of(context).colorScheme.onSurface, size: 24),
                       if (messages.unreadCount > 0)
                         Positioned(
                           top: 2,
@@ -652,14 +652,14 @@ class _ImageSourceOption extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceVariant,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           children: [
             Icon(icon, size: 32, color: AppTheme.accent),
             const SizedBox(height: 8),
-            Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+            Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface)),
           ],
         ),
       ),

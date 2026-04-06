@@ -14,17 +14,18 @@ class DashboardStats extends StatelessWidget {
     final pending = stats['pending'] ?? 0;
     final overdue = stats['overdue'] ?? 0;
     final progress = total > 0 ? done / total : 0.0;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppTheme.surfaceLow, AppTheme.surface],
+          colors: [colorScheme.surface, colorScheme.surface],
         ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: AppTheme.borderSubtle(context)),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4)),
         ],
@@ -37,7 +38,7 @@ class DashboardStats extends StatelessWidget {
               children: [
                 Text(
                   total > 0 ? '${(progress * 100).round()}% Done' : 'No chores',
-                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: colorScheme.onSurface, letterSpacing: -0.5),
                 ),
                 const SizedBox(height: 16),
                 _StatRow(icon: Icons.check_circle_rounded, label: '$done done', color: AppTheme.accentGreen),
@@ -51,7 +52,6 @@ class DashboardStats extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          // Glowing progress ring
           Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -68,11 +68,11 @@ class DashboardStats extends StatelessWidget {
               size: 78,
               strokeWidth: 7,
               color: AppTheme.accent,
-              backgroundColor: Colors.white.withValues(alpha: 0.06),
+              backgroundColor: colorScheme.onSurface.withValues(alpha: 0.06),
               center: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('$done', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white)),
+                  Text('$done', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: colorScheme.onSurface)),
                   Text('of $total', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
                 ],
               ),
@@ -105,7 +105,7 @@ class _StatRow extends StatelessWidget {
         const SizedBox(width: 10),
         Icon(icon, size: 16, color: color),
         const SizedBox(width: 6),
-        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade300)),
+        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade400)),
       ],
     );
   }
