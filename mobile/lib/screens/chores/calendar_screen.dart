@@ -18,15 +18,16 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  /// Get the relevant date for a chore: dueDate if set, otherwise createdAt
+  /// Get the relevant date for a chore: dueDate if set, otherwise createdAt.
+  /// Converts to local time so calendar day comparisons work correctly.
   DateTime? _choreDate(Chore chore) {
     // Try dueDate first
     if (chore.dueDate != null && chore.dueDate!.isNotEmpty) {
-      try { return DateTime.parse(chore.dueDate!); } catch (_) {}
+      try { return DateTime.parse(chore.dueDate!).toLocal(); } catch (_) {}
     }
     // Fall back to createdAt
     if (chore.createdAt != null && chore.createdAt!.isNotEmpty) {
-      try { return DateTime.parse(chore.createdAt!); } catch (_) {}
+      try { return DateTime.parse(chore.createdAt!).toLocal(); } catch (_) {}
     }
     return null;
   }
@@ -49,7 +50,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   Widget build(BuildContext context) {
     final chores = ref.watch(choreProvider);
     final family = ref.watch(familyProvider);
-    final allChores = chores.chores;
+    final allChores = chores.allChores;
     final selectedChores = _selectedDay != null ? _getChoresForDay(_selectedDay!, allChores) : <Chore>[];
 
     return Scaffold(

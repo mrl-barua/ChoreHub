@@ -20,30 +20,22 @@ class ChoreDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
-  Chore? _chore;
   List<ChoreHistory> _history = [];
   List<ChoreComment> _comments = [];
   final _commentController = TextEditingController();
-  bool _isLoading = true;
   bool _showConfetti = false;
 
   @override
   void initState() {
     super.initState();
-    // Load all data in parallel
-    Future.wait([_loadChore(), _loadHistory(), _loadComments()]);
+    _loadHistory();
+    _loadComments();
   }
 
   @override
   void dispose() {
     _commentController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadChore() async {
-    final chores = ref.read(choreProvider).chores;
-    final chore = chores.where((c) => c.id == widget.choreId).firstOrNull;
-    if (mounted) setState(() { _chore = chore; _isLoading = false; });
   }
 
   Future<void> _loadComments() async {
@@ -118,7 +110,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                       'note': noteController.text.trim().isEmpty ? null : noteController.text.trim(),
                     });
                     await ref.read(choreProvider.notifier).loadChores();
-                    await _loadChore();
+                    await ref.read(choreProvider.notifier).loadChores();
                     await _loadHistory();
                     if (mounted) {
                       setState(() => _showConfetti = true);
@@ -167,13 +159,13 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                 ),
                 title: Text(m.user?.displayName ?? 'Unknown'),
                 subtitle: Text('@${m.user?.username ?? ''}'),
-                trailing: _chore?.assignedTo == m.userId ? const Icon(Icons.check_rounded, color: AppTheme.accentGreen) : null,
+                trailing: ref.read(choreProvider).allChores.where((c) => c.id == widget.choreId).firstOrNull?.assignedTo == m.userId
+                    ? const Icon(Icons.check_rounded, color: AppTheme.accentGreen) : null,
                 onTap: () async {
                   Navigator.pop(ctx);
                   try {
                     await ApiClient().dio.patch('/chores/${widget.choreId}', data: {'assignedTo': m.userId});
                     await ref.read(choreProvider.notifier).loadChores();
-                    await _loadChore();
                     await _loadHistory();
                   } catch (_) {}
                 },
@@ -185,8 +177,8 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
     );
   }
 
-  Color get _priorityColor {
-    switch (_chore?.priority) {
+  Color _priorityColorFor(String? priority) {
+    switch (priority) {
       case 'high': return AppTheme.priorityHigh;
       case 'low': return AppTheme.priorityLow;
       default: return AppTheme.priorityMedium;
@@ -265,11 +257,17 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
   Widget build(BuildContext context) {
     final family = ref.watch(familyProvider);
     final currentUser = ref.watch(authProvider).user;
+    final choreState = ref.watch(choreProvider);
 
-    if (_isLoading) return Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator()));
-    if (_chore == null) return Scaffold(appBar: AppBar(), body: const Center(child: Text('Chore not found')));
+    // Reactively find the chore from the provider
+    final chore = choreState.allChores.where((c) => c.id == widget.choreId).firstOrNull;
 
-    final chore = _chore!;
+    if (choreState.isLoading && chore == null) {
+      return Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator()));
+    }
+    if (chore == null) {
+      return Scaffold(appBar: AppBar(), body: const Center(child: Text('Chore not found')));
+    }
     final assignee = family.members.where((m) => m.userId == chore.assignedTo).firstOrNull;
     final categoryColor = AppTheme.categoryColors[chore.category] ?? Colors.grey;
     final isAssignee = currentUser != null && chore.assignedTo == currentUser.id;
@@ -287,7 +285,6 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
             onPressed: () async {
               await context.push('/chores/${chore.id}/edit');
               await ref.read(choreProvider.notifier).loadChores();
-              _loadChore();
             },
           ),
           IconButton(
@@ -335,7 +332,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                         const SizedBox(height: 6),
                         Wrap(spacing: 8, runSpacing: 6, children: [
                           _Badge(label: chore.isDone ? 'Done' : 'Pending', color: chore.isDone ? AppTheme.accentGreen : AppTheme.accentOrange),
-                          _Badge(label: '${chore.priority[0].toUpperCase()}${chore.priority.substring(1)}', color: _priorityColor),
+                          _Badge(label: '${chore.priority[0].toUpperCase()}${chore.priority.substring(1)}', color: _priorityColorFor(chore.priority)),
                           if (chore.assignedTo != null && chore.assignmentStatus != 'unassigned')
                             _Badge(label: _assignmentStatusLabel(chore.assignmentStatus), color: _assignmentStatusColor(chore.assignmentStatus)),
                           if (chore.recurrence != null)
@@ -381,13 +378,13 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                         const SizedBox(height: 14),
                         Row(children: [
                           Expanded(child: OutlinedButton(
-                            onPressed: () async { await ref.read(choreProvider.notifier).respondToAssignment(chore.id, 'declined'); _loadChore(); _loadHistory(); },
+                            onPressed: () async { await ref.read(choreProvider.notifier).respondToAssignment(chore.id, 'declined'); _loadHistory(); },
                             style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
                             child: const Text('Decline'),
                           )),
                           const SizedBox(width: 12),
                           Expanded(child: FilledButton(
-                            onPressed: () async { await ref.read(choreProvider.notifier).respondToAssignment(chore.id, 'accepted'); _loadChore(); _loadHistory(); },
+                            onPressed: () async { await ref.read(choreProvider.notifier).respondToAssignment(chore.id, 'accepted'); _loadHistory(); },
                             style: FilledButton.styleFrom(backgroundColor: AppTheme.accentGreen),
                             child: const Text('Accept'),
                           )),
@@ -491,7 +488,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                 FilledButton.icon(
                   onPressed: () async {
                     await ref.read(choreProvider.notifier).toggleStatus(chore.id);
-                    await _loadChore();
+                    await ref.read(choreProvider.notifier).loadChores();
                     await _loadHistory();
                   },
                   icon: const Icon(Icons.undo_rounded),

@@ -7,6 +7,7 @@ import 'family_provider.dart';
 enum ChoreSort { newest, dueDate, priority }
 
 class ChoreState {
+  final List<Chore> allChores;
   final List<Chore> chores;
   final String filter;
   final ChoreSort sort;
@@ -16,6 +17,7 @@ class ChoreState {
   final String? error;
 
   ChoreState({
+    this.allChores = const [],
     this.chores = const [],
     this.filter = 'all',
     this.sort = ChoreSort.newest,
@@ -84,7 +86,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
       }
 
       final sorted = _sortChores(filtered, state.sort);
-      state = ChoreState(chores: sorted, filter: state.filter, sort: state.sort, searchQuery: state.searchQuery, stats: stats);
+      state = ChoreState(allChores: allChores, chores: sorted, filter: state.filter, sort: state.sort, searchQuery: state.searchQuery, stats: stats);
     } catch (e) {
       debugPrint('[Chores] Load failed: $e');
       state = ChoreState(error: 'Failed to load chores');
@@ -92,17 +94,17 @@ class ChoreNotifier extends Notifier<ChoreState> {
   }
 
   Future<void> setFilter(String filter) async {
-    state = ChoreState(chores: state.chores, filter: filter, sort: state.sort, searchQuery: state.searchQuery, stats: state.stats, isLoading: true);
+    state = ChoreState(allChores: state.allChores, chores: state.chores, filter: filter, sort: state.sort, searchQuery: state.searchQuery, stats: state.stats, isLoading: true);
     await loadChores();
   }
 
   void setSort(ChoreSort sort) {
     final sorted = _sortChores(state.chores, sort);
-    state = ChoreState(chores: sorted, filter: state.filter, sort: sort, searchQuery: state.searchQuery, stats: state.stats);
+    state = ChoreState(allChores: state.allChores, chores: sorted, filter: state.filter, sort: sort, searchQuery: state.searchQuery, stats: state.stats);
   }
 
   void setSearchQuery(String query) {
-    state = ChoreState(chores: state.chores, filter: state.filter, sort: state.sort, searchQuery: query, stats: state.stats);
+    state = ChoreState(allChores: state.allChores, chores: state.chores, filter: state.filter, sort: state.sort, searchQuery: query, stats: state.stats);
   }
 
   List<Chore> _sortChores(List<Chore> chores, ChoreSort sort) {

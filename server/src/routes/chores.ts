@@ -672,6 +672,33 @@ router.get(
   },
 );
 
+// Get a single chore by ID
+router.get(
+  "/:id",
+  authenticate,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const id = String(req.params.id);
+      const chore = await prisma.chore.findUnique({ where: { id } });
+
+      if (!chore) {
+        res.status(404).json({ error: "Chore not found" });
+        return;
+      }
+
+      if (!(await verifyFamilyMembership(req.userId!, chore.familyId))) {
+        res.status(403).json({ error: "Not a member of this family" });
+        return;
+      }
+
+      res.json(chore);
+    } catch (error) {
+      console.error("Get chore error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
 router.delete(
   "/:id",
   authenticate,
