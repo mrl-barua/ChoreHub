@@ -16,7 +16,7 @@ import 'screens/family/create_family_screen.dart';
 import 'screens/family/invite_screen.dart';
 import 'screens/family/invitations_screen.dart';
 import 'screens/analytics/analytics_screen.dart';
-import 'screens/chores/calendar_screen.dart';
+
 import 'screens/family/member_detail_screen.dart';
 import 'screens/family/family_settings_screen.dart';
 import 'screens/family/challenges_screen.dart';
@@ -135,10 +135,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/analytics',
         pageBuilder: (_, state) => _slideUpPage(const AnalyticsScreen(), state),
-      ),
-      GoRoute(
-        path: '/chores/calendar',
-        pageBuilder: (_, state) => _slideUpPage(const CalendarScreen(), state),
       ),
       GoRoute(
         path: '/family/member/:userId',

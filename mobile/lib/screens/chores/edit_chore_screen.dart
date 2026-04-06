@@ -40,7 +40,9 @@ class _EditChoreScreenState extends ConsumerState<EditChoreScreen> {
   }
 
   Future<void> _loadChore() async {
-    final chore = ref.read(choreProvider).allChores.where((c) => c.id == widget.choreId).firstOrNull;
+    final choreState = ref.read(choreProvider);
+    final choreList = choreState.allChores.isNotEmpty ? choreState.allChores : choreState.chores;
+    final chore = choreList.where((c) => c.id == widget.choreId).firstOrNull;
     if (chore != null) {
       _titleController.text = chore.title;
       _descriptionController.text = chore.description ?? '';

@@ -52,7 +52,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   Widget build(BuildContext context) {
     final chores = ref.watch(choreProvider);
     final family = ref.watch(familyProvider);
-    final allChores = chores.allChores;
+    final allChores = chores.allChores.isNotEmpty ? chores.allChores : chores.chores;
     final selectedChores = _selectedDay != null ? _getChoresForDay(_selectedDay!, allChores) : <Chore>[];
 
     return Scaffold(

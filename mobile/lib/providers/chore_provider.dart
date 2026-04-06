@@ -86,6 +86,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
       }
 
       final sorted = _sortChores(filtered, state.sort);
+      debugPrint('[Chores] Loaded ${allChores.length} total, ${sorted.length} filtered');
       state = ChoreState(allChores: allChores, chores: sorted, filter: state.filter, sort: state.sort, searchQuery: state.searchQuery, stats: stats);
     } catch (e) {
       debugPrint('[Chores] Load failed: $e');

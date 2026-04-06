@@ -81,11 +81,6 @@ class _ChoreListScreenState extends ConsumerState<ChoreListScreen> {
             tooltip: 'Quick Add',
           ),
           IconButton(
-            icon: const Icon(Icons.calendar_month_rounded),
-            onPressed: () => context.push('/chores/calendar'),
-            tooltip: 'Calendar View',
-          ),
-          IconButton(
             icon: Icon(_showSearch ? Icons.close_rounded : Icons.search_rounded),
             onPressed: () {
               setState(() {

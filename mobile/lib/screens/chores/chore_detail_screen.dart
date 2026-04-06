@@ -202,7 +202,8 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
     final currentUser = ref.watch(authProvider).user;
     final choreState = ref.watch(choreProvider);
 
-    final chore = choreState.allChores.where((c) => c.id == widget.choreId).firstOrNull;
+    final choreList = choreState.allChores.isNotEmpty ? choreState.allChores : choreState.chores;
+    final chore = choreList.where((c) => c.id == widget.choreId).firstOrNull;
 
     if (choreState.isLoading && chore == null) {
       return Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator()));
