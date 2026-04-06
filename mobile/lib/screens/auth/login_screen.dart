@@ -79,7 +79,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       fillColor: AppTheme.surface,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusM),
-        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusM),
@@ -146,9 +146,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppTheme.accent.withValues(alpha: 0.4),
-                                  blurRadius: 20,
-                                  spreadRadius: 2,
+                                  color: AppTheme.accent.withValues(alpha: 0.3),
+                                  blurRadius: 16,
+                                  spreadRadius: 1,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
