@@ -125,6 +125,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final family = ref.watch(familyProvider);
     final chores = ref.watch(choreProvider);
 
+    // Network error — don't redirect to welcome, show retry UI
+    if (family.currentFamily == null && !family.isLoading && family.hasLoadError) {
+      return Scaffold(
+        body: SafeArea(
+          child: EmptyState(
+            icon: Icons.wifi_off_rounded,
+            title: 'Connection Problem',
+            subtitle: 'Could not load your family data. Check your internet connection and try again.',
+            action: FilledButton.icon(
+              onPressed: () => ref.read(familyProvider.notifier).loadFamilies(),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Retry'),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Genuinely no family yet — show onboarding
     if (family.currentFamily == null && !family.isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.go('/welcome');
@@ -132,31 +151,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    // Still loading
     if (family.currentFamily == null) {
-      return Scaffold(
-        body: SafeArea(
-          child: EmptyState(
-            icon: Icons.family_restroom_rounded,
-            title: 'Welcome to ChoreHub!',
-            subtitle: 'Create a family group or accept an invitation to get started.',
-            action: Column(
-              children: [
-                FilledButton.icon(
-                  onPressed: () => context.push('/family/create'),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Create Family'),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () => context.push('/family/invitations'),
-                  icon: const Icon(Icons.mail_outline_rounded),
-                  label: const Text('View Invitations'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final overdueCount = chores.stats['overdue'] ?? 0;

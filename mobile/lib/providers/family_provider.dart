@@ -11,6 +11,7 @@ class FamilyState {
   final Family? currentFamily;
   final List<FamilyMember> members;
   final bool isLoading;
+  final String? error;
   final Map<String, int> memberChoreCount;
   final Map<String, int> memberCompletedCount;
   final int totalChores;
@@ -21,11 +22,14 @@ class FamilyState {
     this.currentFamily,
     this.members = const [],
     this.isLoading = false,
+    this.error,
     this.memberChoreCount = const {},
     this.memberCompletedCount = const {},
     this.totalChores = 0,
     this.completedChores = 0,
   });
+
+  bool get hasLoadError => error != null;
 }
 
 class FamilyNotifier extends Notifier<FamilyState> {
@@ -62,7 +66,7 @@ class FamilyNotifier extends Notifier<FamilyState> {
       );
     } catch (e) {
       debugPrint('[Family] Load failed: $e');
-      state = FamilyState();
+      state = FamilyState(error: 'Failed to load families. Check your connection.');
     }
   }
 
