@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
 import '../../services/api_client.dart';
+import '../../services/family_service.dart';
 import '../../widgets/animated_list_item.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/pressable.dart';
@@ -18,6 +19,8 @@ class FamilyScreen extends ConsumerStatefulWidget {
 }
 
 class _FamilyScreenState extends ConsumerState<FamilyScreen> {
+  final FamilyService _familyService = FamilyService(ApiClient());
+
   @override
   void initState() {
     super.initState();
@@ -49,10 +52,11 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     if (confirm != true) return;
 
     try {
-      await ApiClient().dio.delete('/families/${family.id}/members/${user.id}');
+      await _familyService.removeMember(family.id, user.id);
       ref.invalidate(familyProvider);
       ref.invalidate(choreProvider);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Failed to leave family: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to leave family')));
       }
@@ -80,13 +84,14 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     if (confirm != true) return;
 
     try {
-      await ApiClient().dio.delete('/families/${family.id}/members/$targetUserId');
+      await _familyService.removeMember(family.id, targetUserId);
       await ref.read(familyProvider.notifier).refreshWithSync();
       await ref.read(familyProvider.notifier).loadMemberStats();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$displayName removed')));
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Failed to remove member: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to remove member')));
       }
@@ -175,7 +180,6 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
           children: [
-            // Family stats header
             AnimatedListItem(
               index: 0,
               child: Container(
@@ -244,7 +248,6 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Quick actions
             AnimatedListItem(
               index: 1,
               child: Row(
@@ -280,7 +283,6 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Members section
             AnimatedListItem(
               index: 2,
               child: const Text('Members', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
@@ -366,7 +368,6 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                                     child: const Text('Admin',
                                         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.accent)),
                                   ),
-                                // Show remove button if current user is admin and this is not self
                                 if (currentUserIsAdmin && !isCurrentUser) ...[
                                   const SizedBox(width: 4),
                                   IconButton(
@@ -381,7 +382,6 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        // Member stats row
                         Row(
                           children: [
                             _MemberStatChip(
@@ -414,7 +414,6 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
               );
             }),
 
-            // Leave family button
             const SizedBox(height: 24),
             AnimatedListItem(
               index: family.members.length + 4,
@@ -532,4 +531,3 @@ class _MemberStatChip extends StatelessWidget {
     );
   }
 }
-

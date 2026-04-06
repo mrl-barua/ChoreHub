@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/theme.dart';
 import '../../providers/family_provider.dart';
 import '../../services/api_client.dart';
+import '../../services/user_service.dart';
 import '../../widgets/charts/weekly_chart.dart';
 import '../../widgets/charts/category_pie_chart.dart';
 import '../../providers/analytics_provider.dart';
@@ -16,6 +17,8 @@ class MemberDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
+  final UserService _userService = UserService(ApiClient());
+
   Map<String, dynamic>? _stats;
   bool _isLoading = true;
 
@@ -29,9 +32,15 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
     final family = ref.read(familyProvider).currentFamily;
     if (family == null) return;
     try {
-      final response = await ApiClient().dio.get('/users/${widget.userId}/stats', queryParameters: {'familyId': family.id});
-      if (mounted) setState(() { _stats = response.data; _isLoading = false; });
-    } catch (_) {
+      final stats = await _userService.loadUserStats(widget.userId, family.id);
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load member stats: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -53,7 +62,6 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
               : ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
-                    // Header
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -86,7 +94,6 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Stats row
                     Row(children: [
                       _StatChip(icon: Icons.check_circle_rounded, label: 'Completed', value: '${_stats!['totalCompleted'] ?? 0}', color: AppTheme.accentGreen),
                       const SizedBox(width: 8),
@@ -110,7 +117,6 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                     ],
                     const SizedBox(height: 24),
 
-                    // Weekly chart
                     const Text('This Week', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 12),
                     SizedBox(
@@ -123,7 +129,6 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Category breakdown
                     if ((_stats!['categoryBreakdown'] as Map?)?.isNotEmpty == true) ...[
                       const Text('Categories', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 12),

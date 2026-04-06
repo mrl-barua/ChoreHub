@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/message.dart';
 import '../services/api_client.dart';
+import '../services/message_service.dart';
 import '../services/socket_service.dart';
 import 'auth_provider.dart';
 import 'family_provider.dart';
@@ -34,7 +34,7 @@ class MessageState {
 
 class MessageNotifier extends Notifier<MessageState> {
   final SocketService _socket = SocketService();
-  final ApiClient _apiClient = ApiClient();
+  final MessageService _messageService = MessageService(ApiClient());
   StreamSubscription<Message>? _messageSub;
   StreamSubscription<String>? _typingSub;
   StreamSubscription<String>? _stopTypingSub;
@@ -61,7 +61,6 @@ class MessageNotifier extends Notifier<MessageState> {
   Future<void> _init() async {
     await _socket.connect();
 
-    // Reload messages when family changes
     ref.listen(familyProvider, (prev, next) {
       final prevFamily = prev?.currentFamily?.id;
       final nextFamily = next.currentFamily?.id;
@@ -70,7 +69,6 @@ class MessageNotifier extends Notifier<MessageState> {
       }
     });
 
-    // Listen for incoming messages via socket (real-time)
     _messageSub = _socket.onMessage.listen((message) {
       final current = state.messages;
       if (!current.any((m) => m.id == message.id)) {
@@ -151,7 +149,6 @@ class MessageNotifier extends Notifier<MessageState> {
     await loadMessages();
   }
 
-  /// Load messages directly from server — server is the source of truth
   Future<void> loadMessages() async {
     final family = ref.read(familyProvider).currentFamily;
     if (family == null) {
@@ -163,11 +160,7 @@ class MessageNotifier extends Notifier<MessageState> {
     state = MessageState(isLoading: true);
 
     try {
-      final response = await _apiClient.dio.get('/messages', queryParameters: {
-        'familyId': family.id,
-        'limit': 50,
-      });
-      final messages = (response.data as List).map((m) => Message.fromJson(m)).toList();
+      final messages = await _messageService.loadMessages(family.id, limit: 50);
       debugPrint('[Messages] Server returned ${messages.length} messages');
 
       state = MessageState(
@@ -180,7 +173,6 @@ class MessageNotifier extends Notifier<MessageState> {
     }
   }
 
-  /// Load older messages (pagination)
   Future<void> loadMore() async {
     if (state.isLoading || !state.hasMore || state.messages.isEmpty) return;
 
@@ -190,12 +182,11 @@ class MessageNotifier extends Notifier<MessageState> {
     final oldest = state.messages.first.createdAt;
 
     try {
-      final response = await _apiClient.dio.get('/messages', queryParameters: {
-        'familyId': family.id,
-        'before': oldest,
-        'limit': 30,
-      });
-      final olderMessages = (response.data as List).map((m) => Message.fromJson(m)).toList();
+      final olderMessages = await _messageService.loadMessages(
+        family.id,
+        limit: 30,
+        before: oldest,
+      );
 
       if (olderMessages.isEmpty) {
         state = MessageState(
@@ -229,7 +220,6 @@ class MessageNotifier extends Notifier<MessageState> {
     final now = DateTime.now().toIso8601String();
     final mentionsStr = mentionUserIds != null && mentionUserIds.isNotEmpty ? mentionUserIds.join(',') : null;
 
-    // Build replyTo from existing message for optimistic display
     ReplyTo? replyTo;
     if (replyToId != null) {
       final original = state.messages.where((m) => m.id == replyToId).firstOrNull;
@@ -254,7 +244,6 @@ class MessageNotifier extends Notifier<MessageState> {
       replyTo: replyTo,
     );
 
-    // Optimistic update — show immediately
     state = MessageState(
       messages: [...state.messages, message],
       typingUserIds: state.typingUserIds,
@@ -262,7 +251,6 @@ class MessageNotifier extends Notifier<MessageState> {
       unreadCount: state.unreadCount,
     );
 
-    // Send via socket (real-time delivery to others)
     _socket.sendMessage(
       id: id,
       familyId: family.id,
@@ -275,18 +263,17 @@ class MessageNotifier extends Notifier<MessageState> {
 
     _socket.sendStopTyping(family.id);
 
-    // Also send via REST as backup to guarantee server persistence
     try {
-      await _apiClient.dio.post('/messages/send', data: {
-        'id': id,
-        'familyId': family.id,
-        'text': msgText,
-        'choreId': choreId,
-        'mentions': mentionsStr,
-        'replyToId': replyToId,
-        'imageUrl': imageUrl,
-        'createdAt': now,
-      });
+      await _messageService.sendMessageRest(
+        id: id,
+        familyId: family.id,
+        text: msgText,
+        choreId: choreId,
+        mentions: mentionsStr,
+        replyToId: replyToId,
+        imageUrl: imageUrl,
+        createdAt: now,
+      );
     } catch (e) {
       debugPrint('[Messages] REST backup send failed: $e');
     }
@@ -294,11 +281,7 @@ class MessageNotifier extends Notifier<MessageState> {
 
   Future<String?> uploadImage(File file) async {
     try {
-      final formData = FormData.fromMap({
-        'image': await MultipartFile.fromFile(file.path, filename: file.path.split('/').last),
-      });
-      final response = await _apiClient.dio.post('/messages/upload', data: formData);
-      return response.data['imageUrl'] as String?;
+      return await _messageService.uploadImage(file.path);
     } catch (e) {
       debugPrint('[Messages] Image upload error: $e');
       return null;
@@ -352,12 +335,7 @@ class MessageNotifier extends Notifier<MessageState> {
     state = MessageState(isLoading: true, isSearching: true, searchQuery: query);
 
     try {
-      final response = await _apiClient.dio.get('/messages', queryParameters: {
-        'familyId': family.id,
-        'search': query,
-        'limit': 50,
-      });
-      final results = (response.data as List).map((m) => Message.fromJson(m)).toList();
+      final results = await _messageService.loadMessages(family.id, limit: 50, search: query);
       state = MessageState(messages: results, isSearching: true, searchQuery: query, hasMore: false);
     } catch (e) {
       debugPrint('[Messages] Search failed: $e');

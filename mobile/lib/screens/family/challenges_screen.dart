@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/theme.dart';
 import '../../providers/family_provider.dart';
 import '../../services/api_client.dart';
+import '../../services/family_service.dart';
 import '../../widgets/challenge_progress_card.dart';
 
 class ChallengesScreen extends ConsumerStatefulWidget {
@@ -13,6 +14,8 @@ class ChallengesScreen extends ConsumerStatefulWidget {
 }
 
 class _ChallengesScreenState extends ConsumerState<ChallengesScreen> {
+  final FamilyService _familyService = FamilyService(ApiClient());
+
   List<Map<String, dynamic>> _challenges = [];
   bool _isLoading = true;
 
@@ -26,9 +29,15 @@ class _ChallengesScreenState extends ConsumerState<ChallengesScreen> {
     final family = ref.read(familyProvider).currentFamily;
     if (family == null) return;
     try {
-      final response = await ApiClient().dio.get('/families/${family.id}/challenges');
-      if (mounted) setState(() { _challenges = List<Map<String, dynamic>>.from(response.data); _isLoading = false; });
-    } catch (_) {
+      final challenges = await _familyService.loadChallenges(family.id);
+      if (mounted) {
+        setState(() {
+          _challenges = challenges;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load challenges: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -62,12 +71,22 @@ class _ChallengesScreenState extends ConsumerState<ChallengesScreen> {
                   if (family == null) return;
                   Navigator.pop(ctx);
                   try {
-                    await ApiClient().dio.post('/families/${family.id}/challenges', data: {
-                      'title': titleController.text.trim(),
-                      'targetCount': int.tryParse(targetController.text) ?? 20,
-                    });
+                    await _familyService.createChallenge(
+                      family.id,
+                      title: titleController.text.trim(),
+                      targetCount: int.tryParse(targetController.text) ?? 20,
+                      startDate: DateTime.now().toIso8601String(),
+                      endDate: DateTime.now().add(const Duration(days: 7)).toIso8601String(),
+                    );
                     _loadChallenges();
-                  } catch (_) {}
+                  } catch (e) {
+                    debugPrint('Failed to create challenge: $e');
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Failed to create challenge')),
+                      );
+                    }
+                  }
                 },
                 child: const Text('Create Challenge'),
               ),

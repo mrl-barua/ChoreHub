@@ -7,6 +7,7 @@ import '../../providers/connectivity_provider.dart';
 import '../../providers/theme_provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../services/api_client.dart';
+import '../../services/user_service.dart';
 import '../../widgets/animated_list_item.dart';
 import '../../widgets/polished_bottom_sheet.dart';
 
@@ -18,6 +19,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final UserService _userService = UserService(ApiClient());
+
   Map<String, dynamic>? _stats;
   bool _choreReminders = true;
   bool _chatMentions = true;
@@ -46,9 +49,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _loadStats() async {
     try {
-      final response = await ApiClient().dio.get('/users/me/stats');
-      if (mounted) setState(() => _stats = response.data);
-    } catch (_) {}
+      final stats = await _userService.loadMyStats();
+      if (mounted) setState(() => _stats = stats);
+    } catch (e) {
+      debugPrint('Failed to load user stats: $e');
+    }
   }
 
   void _showEditProfile() {
@@ -77,16 +82,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 onPressed: () async {
                   if (controller.text.trim().isEmpty) return;
                   try {
-                    await ApiClient().dio.patch('/users/me', data: {'displayName': controller.text.trim()});
+                    await _userService.updateDisplayName(controller.text.trim());
                     if (ctx.mounted) Navigator.pop(ctx);
-                    // Refresh auth state
                     ref.invalidate(authProvider);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Profile updated')),
                       );
                     }
-                  } catch (_) {
+                  } catch (e) {
+                    debugPrint('Failed to update profile: $e');
                     if (ctx.mounted) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
                         const SnackBar(content: Text('Failed to update')),
@@ -137,15 +142,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     return;
                   }
                   try {
-                    await ApiClient().dio.post('/users/me/change-password', data: {
-                      'currentPassword': currentController.text,
-                      'newPassword': newController.text,
-                    });
+                    await _userService.changePassword(
+                      currentPassword: currentController.text,
+                      newPassword: newController.text,
+                    );
                     if (ctx.mounted) Navigator.pop(ctx);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password changed successfully')));
                     }
                   } catch (e) {
+                    debugPrint('Failed to change password: $e');
                     if (ctx.mounted) {
                       ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Failed — check current password')));
                     }
@@ -175,7 +181,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            // Avatar + name card
             AnimatedListItem(
               index: 0,
               child: Container(
@@ -224,7 +229,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Personal stats
             if (_stats != null)
               AnimatedListItem(
                 index: 1,
@@ -267,7 +271,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             const SizedBox(height: 16),
 
-            // Account section
             AnimatedListItem(
               index: 2,
               child: Card(
@@ -303,7 +306,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Notifications
             AnimatedListItem(
               index: 3,
               child: Card(
@@ -352,7 +354,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Appearance
             AnimatedListItem(
               index: 3,
               child: Card(
@@ -377,7 +378,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 12),
 
-            // App info
             AnimatedListItem(
               index: 4,
               child: Card(
@@ -394,7 +394,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 32),
 
-            // Logout
             AnimatedListItem(
               index: 5,
               child: OutlinedButton.icon(

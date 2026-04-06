@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_client.dart';
+import '../services/chore_service.dart';
 import 'auth_provider.dart';
 import 'family_provider.dart';
 
@@ -48,7 +49,7 @@ class AnalyticsState {
 }
 
 class AnalyticsNotifier extends Notifier<AnalyticsState> {
-  final ApiClient _apiClient = ApiClient();
+  final ChoreService _choreService = ChoreService(ApiClient());
 
   @override
   AnalyticsState build() {
@@ -67,26 +68,19 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
     state = AnalyticsState(isLoading: true);
 
     try {
-      final response = await _apiClient.dio.get('/chores/analytics', queryParameters: {
-        'familyId': family.id,
-      });
-      final data = response.data;
+      final data = await _choreService.loadAnalytics(family.id);
 
-      // Parse stats
       final stats = data['stats'] as Map<String, dynamic>;
 
-      // Parse weekly completions
       final weeklyRaw = (data['weeklyCompletions'] as List?) ?? [];
       final weekly = weeklyRaw.map((w) => DayCompletion(
         w['dayName'] as String,
         w['completed'] as int,
       )).toList();
 
-      // Parse category breakdown
       final catRaw = (data['categoryBreakdown'] as Map<String, dynamic>?) ?? {};
       final categories = catRaw.map((k, v) => MapEntry(k, v as int));
 
-      // Parse member contributions
       final membersRaw = (data['memberContributions'] as List?) ?? [];
       final members = membersRaw.map((m) => MemberContribution(
         m['userId'] as String,
@@ -94,7 +88,6 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
         m['count'] as int,
       )).toList();
 
-      // Parse completion trend
       final trendRaw = (data['completionTrend'] as List?) ?? [];
       final trend = trendRaw.map((t) => WeeklyRate(
         t['label'] as String,

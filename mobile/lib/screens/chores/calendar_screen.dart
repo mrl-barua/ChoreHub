@@ -6,6 +6,8 @@ import '../../config/theme.dart';
 import '../../models/chore.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
+import '../../utils/category_helpers.dart';
+import '../../utils/date_helpers.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -21,13 +23,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   /// Get the relevant date for a chore: dueDate if set, otherwise createdAt.
   /// Converts to local time so calendar day comparisons work correctly.
   DateTime? _choreDate(Chore chore) {
-    // Try dueDate first
     if (chore.dueDate != null && chore.dueDate!.isNotEmpty) {
-      try { return DateTime.parse(chore.dueDate!).toLocal(); } catch (_) {}
+      final parsed = DateHelpers.parseToLocal(chore.dueDate);
+      if (parsed != null) return parsed;
     }
-    // Fall back to createdAt
     if (chore.createdAt != null && chore.createdAt!.isNotEmpty) {
-      try { return DateTime.parse(chore.createdAt!).toLocal(); } catch (_) {}
+      final parsed = DateHelpers.parseToLocal(chore.createdAt);
+      if (parsed != null) return parsed;
     }
     return null;
   }
@@ -111,7 +113,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           ),
           const SizedBox(height: 8),
 
-          // Chore count for selected day
           if (_selectedDay != null && selectedChores.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -173,7 +174,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Icon(
-                                  chore.isDone ? Icons.check_rounded : _categoryIcon(chore.category),
+                                  chore.isDone ? Icons.check_rounded : CategoryHelpers.iconFor(chore.category),
                                   size: 18,
                                   color: chore.isDone ? AppTheme.accentGreen : categoryColor,
                                 ),
@@ -211,9 +212,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                 width: 8, height: 8,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: chore.priority == 'high' ? AppTheme.priorityHigh
-                                      : chore.priority == 'low' ? AppTheme.priorityLow
-                                      : AppTheme.priorityMedium,
+                                  color: CategoryHelpers.priorityColor(chore.priority),
                                 ),
                               ),
                             ],
@@ -226,17 +225,5 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         ],
       ),
     );
-  }
-
-  IconData _categoryIcon(String category) {
-    switch (category) {
-      case 'cleaning': return Icons.cleaning_services_rounded;
-      case 'cooking': return Icons.restaurant_rounded;
-      case 'dishwashing': return Icons.local_laundry_service_rounded;
-      case 'laundry': return Icons.dry_cleaning_rounded;
-      case 'gardening': return Icons.grass_rounded;
-      case 'shopping': return Icons.shopping_cart_rounded;
-      default: return Icons.task_rounded;
-    }
   }
 }

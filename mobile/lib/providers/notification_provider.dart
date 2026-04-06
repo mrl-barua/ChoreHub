@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_client.dart';
+import '../services/notification_service.dart';
 
 class AppNotification {
   final String id;
@@ -41,7 +42,7 @@ class NotificationState {
 }
 
 class NotificationNotifier extends Notifier<NotificationState> {
-  final ApiClient _api = ApiClient();
+  final NotificationService _notificationService = NotificationService(ApiClient());
 
   @override
   NotificationState build() {
@@ -51,8 +52,8 @@ class NotificationNotifier extends Notifier<NotificationState> {
 
   Future<void> loadNotifications() async {
     try {
-      final response = await _api.dio.get('/notifications');
-      final list = (response.data as List).map((n) => AppNotification.fromJson(n)).toList();
+      final rawList = await _notificationService.loadNotifications();
+      final list = rawList.map((n) => AppNotification.fromJson(n)).toList();
       final unread = list.where((n) => !n.read).length;
       state = NotificationState(notifications: list, unreadCount: unread);
     } catch (e) {
@@ -63,23 +64,29 @@ class NotificationNotifier extends Notifier<NotificationState> {
 
   Future<void> loadUnreadCount() async {
     try {
-      final response = await _api.dio.get('/notifications/unread-count');
-      state = NotificationState(notifications: state.notifications, unreadCount: response.data['count'] as int);
-    } catch (_) {}
+      final count = await _notificationService.loadUnreadCount();
+      state = NotificationState(notifications: state.notifications, unreadCount: count);
+    } catch (e) {
+      debugPrint('[Notifications] Load unread count failed: $e');
+    }
   }
 
   Future<void> markRead(String id) async {
     try {
-      await _api.dio.patch('/notifications/$id/read');
+      await _notificationService.markRead(id);
       await loadNotifications();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Notifications] Mark read failed: $e');
+    }
   }
 
   Future<void> markAllRead() async {
     try {
-      await _api.dio.post('/notifications/read-all');
+      await _notificationService.markAllRead();
       await loadNotifications();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Notifications] Mark all read failed: $e');
+    }
   }
 }
 

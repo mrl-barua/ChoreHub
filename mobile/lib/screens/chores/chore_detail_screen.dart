@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
-import '../../models/chore.dart';
 import '../../models/chore_comment.dart';
 import '../../models/chore_history.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
 import '../../services/api_client.dart';
+import '../../services/chore_service.dart';
+import '../../utils/category_helpers.dart';
+import '../../utils/date_helpers.dart';
 import '../../widgets/polished_bottom_sheet.dart';
 
 class ChoreDetailScreen extends ConsumerStatefulWidget {
@@ -20,6 +22,8 @@ class ChoreDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
+  final ChoreService _choreService = ChoreService(ApiClient());
+
   List<ChoreHistory> _history = [];
   List<ChoreComment> _comments = [];
   final _commentController = TextEditingController();
@@ -40,8 +44,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
 
   Future<void> _loadComments() async {
     try {
-      final response = await ApiClient().dio.get('/chores/${widget.choreId}/comments');
-      final comments = (response.data as List).map((c) => ChoreComment.fromJson(c)).toList();
+      final comments = await _choreService.loadComments(widget.choreId);
       if (mounted) setState(() => _comments = comments);
     } catch (e) {
       debugPrint('Failed to load comments: $e');
@@ -53,8 +56,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
     if (text.isEmpty) return;
     _commentController.clear();
     try {
-      final response = await ApiClient().dio.post('/chores/${widget.choreId}/comments', data: {'text': text});
-      final comment = ChoreComment.fromJson(response.data);
+      final comment = await _choreService.postComment(widget.choreId, text);
       if (mounted) setState(() => _comments = [..._comments, comment]);
     } catch (e) {
       debugPrint('Failed to post comment: $e');
@@ -68,10 +70,11 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
 
   Future<void> _loadHistory() async {
     try {
-      final response = await ApiClient().dio.get('/chores/${widget.choreId}/history');
-      final history = (response.data as List).map((h) => ChoreHistory.fromJson(h)).toList();
+      final history = await _choreService.loadHistory(widget.choreId);
       if (mounted) setState(() => _history = history);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to load history: $e');
+    }
   }
 
   void _showCompletionDialog() {
@@ -106,10 +109,10 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                 onPressed: () async {
                   Navigator.pop(ctx);
                   try {
-                    await ApiClient().dio.post('/chores/${widget.choreId}/complete', data: {
-                      'note': noteController.text.trim().isEmpty ? null : noteController.text.trim(),
-                    });
-                    await ref.read(choreProvider.notifier).loadChores();
+                    await _choreService.completeChore(
+                      widget.choreId,
+                      note: noteController.text.trim().isEmpty ? null : noteController.text.trim(),
+                    );
                     await ref.read(choreProvider.notifier).loadChores();
                     await _loadHistory();
                     if (mounted) {
@@ -164,10 +167,17 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                 onTap: () async {
                   Navigator.pop(ctx);
                   try {
-                    await ApiClient().dio.patch('/chores/${widget.choreId}', data: {'assignedTo': m.userId});
+                    await _choreService.reassignChore(widget.choreId, m.userId);
                     await ref.read(choreProvider.notifier).loadChores();
                     await _loadHistory();
-                  } catch (_) {}
+                  } catch (e) {
+                    debugPrint('Failed to reassign chore: $e');
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Failed to reassign chore')),
+                      );
+                    }
+                  }
                 },
               )),
             ],
@@ -175,23 +185,6 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
         ),
       ),
     );
-  }
-
-  Color _priorityColorFor(String? priority) {
-    switch (priority) {
-      case 'high': return AppTheme.priorityHigh;
-      case 'low': return AppTheme.priorityLow;
-      default: return AppTheme.priorityMedium;
-    }
-  }
-
-  Color _assignmentStatusColor(String status) {
-    switch (status) {
-      case 'pending_acceptance': return Colors.orange;
-      case 'accepted': return AppTheme.accentGreen;
-      case 'declined': return Colors.red;
-      default: return Colors.grey;
-    }
   }
 
   String _assignmentStatusLabel(String status) {
@@ -203,63 +196,12 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
     }
   }
 
-  IconData _categoryIcon(String category) {
-    switch (category) {
-      case 'cleaning': return Icons.cleaning_services_rounded;
-      case 'cooking': return Icons.restaurant_rounded;
-      case 'dishwashing': return Icons.local_laundry_service_rounded;
-      case 'laundry': return Icons.dry_cleaning_rounded;
-      case 'gardening': return Icons.grass_rounded;
-      case 'shopping': return Icons.shopping_cart_rounded;
-      default: return Icons.task_rounded;
-    }
-  }
-
-  IconData _historyIcon(String action) {
-    if (action.startsWith('completed')) return Icons.check_circle_rounded;
-    switch (action) {
-      case 'created': return Icons.add_circle_outline_rounded;
-      case 'assigned': return Icons.person_add_rounded;
-      case 'accepted': return Icons.thumb_up_rounded;
-      case 'declined': return Icons.thumb_down_rounded;
-      case 'reopened': return Icons.replay_rounded;
-      default: return Icons.info_outline_rounded;
-    }
-  }
-
-  Color _historyColor(String action) {
-    if (action.startsWith('completed')) return AppTheme.accentGreen;
-    switch (action) {
-      case 'created': return AppTheme.accentBlue;
-      case 'assigned': return AppTheme.accent;
-      case 'accepted': return AppTheme.accentGreen;
-      case 'declined': return AppTheme.accentRed;
-      case 'reopened': return AppTheme.accentOrange;
-      default: return Colors.grey;
-    }
-  }
-
-  String _timeAgo(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      final diff = DateTime.now().difference(date);
-      if (diff.inMinutes < 1) return 'Just now';
-      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-      if (diff.inHours < 24) return '${diff.inHours}h ago';
-      if (diff.inDays < 7) return '${diff.inDays}d ago';
-      return '${date.month}/${date.day}';
-    } catch (_) {
-      return '';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final family = ref.watch(familyProvider);
     final currentUser = ref.watch(authProvider).user;
     final choreState = ref.watch(choreProvider);
 
-    // Reactively find the chore from the provider
     final chore = choreState.allChores.where((c) => c.id == widget.choreId).firstOrNull;
 
     if (choreState.isLoading && chore == null) {
@@ -314,14 +256,13 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
           ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              // Header
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     width: 52, height: 52,
                     decoration: BoxDecoration(color: categoryColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
-                    child: Icon(_categoryIcon(chore.category), color: categoryColor, size: 26),
+                    child: Icon(CategoryHelpers.iconFor(chore.category), color: categoryColor, size: 26),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -332,9 +273,9 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                         const SizedBox(height: 6),
                         Wrap(spacing: 8, runSpacing: 6, children: [
                           _Badge(label: chore.isDone ? 'Done' : 'Pending', color: chore.isDone ? AppTheme.accentGreen : AppTheme.accentOrange),
-                          _Badge(label: '${chore.priority[0].toUpperCase()}${chore.priority.substring(1)}', color: _priorityColorFor(chore.priority)),
+                          _Badge(label: '${chore.priority[0].toUpperCase()}${chore.priority.substring(1)}', color: CategoryHelpers.priorityColor(chore.priority)),
                           if (chore.assignedTo != null && chore.assignmentStatus != 'unassigned')
-                            _Badge(label: _assignmentStatusLabel(chore.assignmentStatus), color: _assignmentStatusColor(chore.assignmentStatus)),
+                            _Badge(label: _assignmentStatusLabel(chore.assignmentStatus), color: CategoryHelpers.assignmentStatusColor(chore.assignmentStatus)),
                           if (chore.recurrence != null)
                             _Badge(label: '${chore.recurrence![0].toUpperCase()}${chore.recurrence!.substring(1)}', color: AppTheme.accentBlue, icon: Icons.repeat_rounded),
                         ]),
@@ -361,7 +302,6 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                 ),
               ],
 
-              // Assignment accept/decline
               if (isAssignee && chore.isPendingAcceptance) ...[
                 const SizedBox(height: 20),
                 Card(
@@ -397,7 +337,6 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
 
               const SizedBox(height: 20),
 
-              // Details
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(4),
@@ -411,16 +350,14 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                 ),
               ),
 
-              // History timeline
               if (_history.isNotEmpty) ...[
                 const SizedBox(height: 24),
                 const Text('Activity', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
                 ...List.generate(_history.length, (i) {
                   final h = _history[i];
-                  final color = _historyColor(h.action);
+                  final color = CategoryHelpers.historyActionColor(h.action);
                   final isLast = i == _history.length - 1;
-                  // Parse note from "completed: note text"
                   String actionLabel = h.actionLabel;
                   String? note;
                   if (h.action.startsWith('completed: ')) {
@@ -439,7 +376,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                               Container(
                                 width: 28, height: 28,
                                 decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
-                                child: Icon(_historyIcon(h.action), size: 14, color: color),
+                                child: Icon(CategoryHelpers.historyActionIcon(h.action), size: 14, color: color),
                               ),
                               if (!isLast) Expanded(child: Container(width: 2, color: Colors.grey.shade800)),
                             ],
@@ -465,7 +402,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                                     child: Text('"$note"', style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey.shade500)),
                                   ),
                                 const SizedBox(height: 2),
-                                Text(_timeAgo(h.createdAt), style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                                Text(DateHelpers.timeAgo(h.createdAt), style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                               ],
                             ),
                           ),
@@ -496,7 +433,6 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                   style: FilledButton.styleFrom(backgroundColor: AppTheme.accentOrange),
                 ),
 
-              // Comments section
               const SizedBox(height: 32),
               const Text('Comments', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
@@ -519,7 +455,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                         Row(children: [
                           Text(c.userName ?? 'Unknown', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                           const SizedBox(width: 8),
-                          Text(_timeAgo(c.createdAt), style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                          Text(DateHelpers.timeAgo(c.createdAt), style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
                         ]),
                         const SizedBox(height: 2),
                         Text(c.text, style: const TextStyle(fontSize: 13)),
@@ -553,7 +489,6 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
             ],
           ),
 
-          // Confetti overlay
           if (_showConfetti)
             Positioned.fill(
               child: IgnorePointer(

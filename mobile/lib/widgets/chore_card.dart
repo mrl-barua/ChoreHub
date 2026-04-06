@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../models/chore.dart';
+import '../utils/category_helpers.dart';
+import '../utils/date_helpers.dart';
 
 class ChoreCard extends StatefulWidget {
   final Chore chore;
@@ -26,38 +28,8 @@ class _ChoreCardState extends State<ChoreCard> {
   bool _isPressed = false;
 
   Chore get chore => widget.chore;
-  Color get _priorityColor => chore.priority == 'high'
-      ? AppTheme.priorityHigh
-      : chore.priority == 'low'
-          ? AppTheme.priorityLow
-          : AppTheme.priorityMedium;
+  Color get _priorityColor => CategoryHelpers.priorityColor(chore.priority);
   Color get _categoryColor => AppTheme.categoryColors[chore.category] ?? AppTheme.categoryColors['other']!;
-
-  IconData _categoryIcon() {
-    switch (chore.category) {
-      case 'cleaning': return Icons.cleaning_services_rounded;
-      case 'cooking': return Icons.restaurant_rounded;
-      case 'dishwashing': return Icons.local_laundry_service_rounded;
-      case 'laundry': return Icons.dry_cleaning_rounded;
-      case 'gardening': return Icons.grass_rounded;
-      case 'shopping': return Icons.shopping_cart_rounded;
-      default: return Icons.task_rounded;
-    }
-  }
-
-  String _formatDate(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      final now = DateTime.now();
-      final diff = date.difference(DateTime(now.year, now.month, now.day)).inDays;
-      if (diff < 0) return 'Overdue';
-      if (diff == 0) return 'Today';
-      if (diff == 1) return 'Tomorrow';
-      return '${date.month}/${date.day}';
-    } catch (_) {
-      return dateStr;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,15 +59,12 @@ class _ChoreCardState extends State<ChoreCard> {
             borderRadius: BorderRadius.circular(16),
             child: Row(
               children: [
-                // Priority color stripe
                 Container(width: 4, height: 68, color: _priorityColor),
-                // Card content
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(12, 14, 16, 14),
                     child: Row(
                       children: [
-                        // Animated checkbox (no controller needed)
                         GestureDetector(
                           onTap: widget.onToggle,
                           child: TweenAnimationBuilder<double>(
@@ -125,7 +94,6 @@ class _ChoreCardState extends State<ChoreCard> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // Category icon
                         Container(
                           width: 40,
                           height: 40,
@@ -133,10 +101,9 @@ class _ChoreCardState extends State<ChoreCard> {
                             color: _categoryColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(_categoryIcon(), size: 20, color: _categoryColor),
+                          child: Icon(CategoryHelpers.iconFor(chore.category), size: 20, color: _categoryColor),
                         ),
                         const SizedBox(width: 14),
-                        // Content
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,7 +132,7 @@ class _ChoreCardState extends State<ChoreCard> {
                                       Text('  ·  ', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
                                     if (chore.dueDate != null)
                                       Text(
-                                        _formatDate(chore.dueDate!),
+                                        DateHelpers.formatDueDate(chore.dueDate!),
                                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: chore.isOverdue ? AppTheme.accentRed : Colors.grey.shade400),
                                       ),
                                     if (chore.isPendingAcceptance) ...[

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/chore.dart';
 import '../services/api_client.dart';
+import '../services/chore_service.dart';
 import 'family_provider.dart';
 
 enum ChoreSort { newest, dueDate, priority }
@@ -38,7 +39,7 @@ class ChoreState {
 }
 
 class ChoreNotifier extends Notifier<ChoreState> {
-  final ApiClient _apiClient = ApiClient();
+  final ChoreService _choreService = ChoreService(ApiClient());
 
   @override
   ChoreState build() {
@@ -62,16 +63,15 @@ class ChoreNotifier extends Notifier<ChoreState> {
     if (family == null) return;
 
     try {
-      final response = await _apiClient.dio.get('/chores', queryParameters: {'familyId': family.id});
-      final allChores = (response.data as List).map((c) => Chore.fromJson(c)).toList();
+      final allChores = await _choreService.loadChores(family.id);
 
       Map<String, int> stats = {'total': 0, 'done': 0, 'pending': 0, 'overdue': 0};
       try {
-        final statsResp = await _apiClient.dio.get('/chores/stats', queryParameters: {'familyId': family.id});
-        stats = Map<String, int>.from(statsResp.data);
-      } catch (e) { debugPrint('[Chores] Stats failed: $e'); }
+        stats = await _choreService.loadStats(family.id);
+      } catch (e) {
+        debugPrint('[Chores] Stats failed: $e');
+      }
 
-      // Apply local filter
       List<Chore> filtered;
       if (state.filter == 'all') {
         filtered = allChores;
@@ -140,12 +140,17 @@ class ChoreNotifier extends Notifier<ChoreState> {
     if (family == null) return;
 
     try {
-      await _apiClient.dio.post('/chores', data: {
-        'familyId': family.id,
-        'title': title, 'category': category, 'timeSlot': timeSlot,
-        'assignedTo': assignedTo, 'dueDate': dueDate, 'priority': priority,
-        'description': description, 'recurrence': recurrence,
-      });
+      await _choreService.createChore(
+        familyId: family.id,
+        title: title,
+        category: category,
+        timeSlot: timeSlot,
+        assignedTo: assignedTo,
+        dueDate: dueDate,
+        priority: priority,
+        description: description,
+        recurrence: recurrence,
+      );
       await loadChores();
     } catch (e) {
       debugPrint('[Chores] Create failed: $e');
@@ -157,7 +162,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
     final chore = state.chores.where((c) => c.id == choreId).firstOrNull;
     if (chore == null) return;
     try {
-      await _apiClient.dio.patch('/chores/$choreId', data: {'status': chore.isDone ? 'pending' : 'done'});
+      await _choreService.toggleStatus(choreId, chore.isDone);
       await loadChores();
     } catch (e) {
       debugPrint('[Chores] Toggle failed: $e');
@@ -167,11 +172,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
 
   Future<void> updateChore(Chore chore) async {
     try {
-      await _apiClient.dio.patch('/chores/${chore.id}', data: {
-        'title': chore.title, 'category': chore.category, 'timeSlot': chore.timeSlot,
-        'assignedTo': chore.assignedTo, 'status': chore.status, 'dueDate': chore.dueDate,
-        'priority': chore.priority, 'description': chore.description, 'recurrence': chore.recurrence,
-      });
+      await _choreService.updateChore(chore);
       await loadChores();
     } catch (e) {
       debugPrint('[Chores] Update failed: $e');
@@ -181,7 +182,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
 
   Future<void> deleteChore(String id) async {
     try {
-      await _apiClient.dio.delete('/chores/$id');
+      await _choreService.deleteChore(id);
       await loadChores();
     } catch (e) {
       debugPrint('[Chores] Delete failed: $e');
@@ -191,7 +192,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
 
   Future<bool> respondToAssignment(String choreId, String assignmentStatus) async {
     try {
-      await _apiClient.dio.patch('/chores/$choreId/assignment', data: {'assignmentStatus': assignmentStatus});
+      await _choreService.respondToAssignment(choreId, assignmentStatus);
       await loadChores();
       return true;
     } catch (e) {

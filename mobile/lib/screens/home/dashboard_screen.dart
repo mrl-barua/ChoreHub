@@ -8,6 +8,8 @@ import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
 import '../../models/chore.dart';
 import '../../services/api_client.dart';
+import '../../services/chore_service.dart';
+import '../../services/family_service.dart';
 import '../../widgets/animated_list_item.dart';
 import '../../widgets/chore_card.dart';
 import '../../widgets/dashboard_stats.dart';
@@ -25,6 +27,9 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  final ChoreService _choreService = ChoreService(ApiClient());
+  final FamilyService _familyService = FamilyService(ApiClient());
+
   List<Chore> _myChores = [];
   List<Chore> _pendingAssignments = [];
   List<ChoreHistory> _recentActivity = [];
@@ -57,30 +62,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (user == null || family == null) return;
 
     try {
-      final api = ApiClient();
-
-      // Fetch all dashboard data from server in parallel
       final results = await Future.wait([
-        api.dio.get('/chores', queryParameters: {'familyId': family.id}),
-        api.dio.get('/chores/history', queryParameters: {'familyId': family.id, 'limit': 10}),
-        api.dio.get('/chores/analytics', queryParameters: {'familyId': family.id}),
+        _choreService.loadChores(family.id),
+        _choreService.loadFamilyHistory(family.id, limit: 10),
+        _choreService.loadAnalytics(family.id),
       ]);
 
-      // Load optional data separately (don't crash if these fail)
       Map<String, dynamic>? weeklySummary;
       List<dynamic> suggestions = [];
-      try { weeklySummary = (await api.dio.get('/families/${family.id}/weekly-summary')).data; } catch (_) {}
-      try { suggestions = (await api.dio.get('/chores/suggestions', queryParameters: {'familyId': family.id})).data as List; } catch (_) {}
+      try {
+        weeklySummary = await _familyService.loadWeeklySummary(family.id);
+      } catch (e) {
+        debugPrint('Failed to load weekly summary: $e');
+      }
+      try {
+        suggestions = (await ApiClient().dio.get('/chores/suggestions', queryParameters: {'familyId': family.id})).data as List;
+      } catch (e) {
+        debugPrint('Failed to load suggestions: $e');
+      }
 
-      final allChores = (results[0].data as List).map((c) => Chore.fromJson(c)).toList();
-      final history = (results[1].data as List).map((h) => ChoreHistory.fromJson(h)).toList();
-      final analytics = results[2].data;
+      final allChores = results[0] as List<Chore>;
+      final history = results[1] as List<ChoreHistory>;
+      final analytics = results[2] as Map<String, dynamic>;
 
       final myChores = allChores.where((c) => c.assignedTo == user.id && !c.isDone).toList();
       final pending = allChores.where((c) => c.assignedTo == user.id && c.isPendingAcceptance).toList();
       final streak = analytics['currentStreak'] as int? ?? 0;
 
-      // Upcoming due (within 3 days, not done)
       final now = DateTime.now();
       final upcoming = allChores.where((c) {
         if (c.dueDate == null || c.isDone) return false;
@@ -91,7 +99,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         } catch (_) { return false; }
       }).toList()..sort((a, b) => (a.dueDate ?? '').compareTo(b.dueDate ?? ''));
 
-      // Done today
       final todayStr = now.toIso8601String().substring(0, 10);
       final doneToday = allChores.where((c) => c.isDone && c.updatedAt != null && c.updatedAt!.startsWith(todayStr)).toList();
 
@@ -107,8 +114,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           _suggestions = suggestions;
         });
       }
-    } catch (_) {
-      // Data load failed — dashboard still renders with empty state
+    } catch (e) {
+      debugPrint('Failed to load dashboard data: $e');
     }
   }
 
@@ -125,7 +132,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final family = ref.watch(familyProvider);
     final chores = ref.watch(choreProvider);
 
-    // Network error — don't redirect to welcome, show retry UI
     if (family.currentFamily == null && !family.isLoading && family.hasLoadError) {
       return Scaffold(
         body: SafeArea(
@@ -143,7 +149,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       );
     }
 
-    // Genuinely no family yet — show onboarding
     if (family.currentFamily == null && !family.isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.go('/welcome');
@@ -151,7 +156,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // Still loading
     if (family.currentFamily == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -168,7 +172,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
             children: [
-              // Greeting + streak
               AnimatedListItem(
                 index: 0,
                 child: Row(
@@ -206,21 +209,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Stats
               AnimatedListItem(index: 1, child: DashboardStats(stats: chores.stats)),
               const SizedBox(height: 16),
 
-              // Weekly summary
               if (_weeklySummary != null)
                 AnimatedListItem(index: 2, child: WeeklySummaryCard(data: _weeklySummary!)),
               if (_weeklySummary != null) const SizedBox(height: 12),
 
-              // Smart suggestions
               if (_suggestions.isNotEmpty)
                 AnimatedListItem(index: 3, child: SuggestionsCard(suggestions: _suggestions)),
               if (_suggestions.isNotEmpty) const SizedBox(height: 12),
 
-              // Quick actions
               AnimatedListItem(
                 index: 2,
                 child: Row(
@@ -237,7 +236,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Overdue warning
               if (overdueCount > 0)
                 AnimatedListItem(
                   index: 3,
@@ -269,7 +267,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                 ),
 
-              // Pending assignments
               if (_pendingAssignments.isNotEmpty) ...[
                 AnimatedListItem(
                   index: 4,
@@ -314,7 +311,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 20),
               ],
 
-              // My tasks
               if (_myChores.isNotEmpty) ...[
                 AnimatedListItem(
                   index: 5,
@@ -340,7 +336,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 20),
               ],
 
-              // Upcoming due (next 3 days)
               if (_upcomingDue.isNotEmpty) ...[
                 AnimatedListItem(
                   index: 8,
@@ -387,7 +382,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 16),
               ],
 
-              // Done today celebration
               if (_doneToday.isNotEmpty) ...[
                 AnimatedListItem(
                   index: 9,
@@ -410,7 +404,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 16),
               ],
 
-              // Recent chores
               AnimatedListItem(
                 index: 10,
                 child: Row(
@@ -457,7 +450,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   );
                 }),
 
-              // Activity feed
               if (_recentActivity.isNotEmpty) ...[
                 const SizedBox(height: 24),
                 AnimatedListItem(

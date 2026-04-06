@@ -68,3 +68,109 @@ flutter run
 - Architecture: [`ARCHITECTURE.md`](ARCHITECTURE.md)
 - Conventions: [`CONVENTIONS.md`](CONVENTIONS.md)
 - Claude Project Knowledge: [`PROJECT_KNOWLEDGE.md`](PROJECT_KNOWLEDGE.md)
+
+---
+
+## Flutter Coding Standards
+
+These are non-negotiable patterns enforced across the entire codebase.
+All contributors and AI tools must follow these when writing or modifying Flutter code.
+
+---
+
+### API Client
+- Never instantiate `ApiClient()` or `Dio()` inline inside a widget or method
+- Always use the shared singleton or injected instance
+- ✅ `_apiClient.dio.get(...)` via service class
+- ❌ `ApiClient().dio.get(...)` inside a widget
+
+---
+
+### Service Layer
+- All API calls (`dio.get`, `dio.post`, `dio.patch`, etc.) must live in a service class under `lib/services/`
+- Widgets and providers must never call `dio` directly
+- Service methods must return typed models or throw meaningful exceptions
+- One service per domain: `ChoreService`, `FamilyService`, `UserService`, `MessageService`, `NotificationService`
+- ✅ `await _choreService.toggleStatus(choreId, chore.isDone)`
+- ❌ `await _apiClient.dio.patch('/chores/$choreId', data: {...})`
+
+---
+
+### Error Handling
+- Every `async` operation wrapped in try/catch must set a visible error state
+- Never catch and only `debugPrint` — the UI must be able to react to failures
+- Always `return` early after setting error state — never fall through to success handling
+- ✅ Set `_error`, call `setState`, then `return`
+- ❌ `catch (e) { debugPrint(e.toString()); }`
+- ❌ `catch (_) {}`
+
+---
+
+### setState
+- Always use `if (mounted)` guard before any `setState` call in async methods
+- Always expand multi-field `setState` — never inline multiple assignments on one line
+- ✅ Multi-line expanded `setState` block
+- ❌ `setState(() { _x = x; _y = y; });` on one line
+
+---
+
+### Business Logic in API Calls
+- Never place ternaries, conditionals, or `.map()` transforms inside `data: {}` or `queryParameters: {}` passed to dio
+- Always resolve to a named variable first
+- ✅ `final newStatus = isDone ? 'pending' : 'done'; dio.patch(...)`
+- ❌ `dio.patch(..., data: {'status': chore.isDone ? 'pending' : 'done'})`
+
+---
+
+### Comments
+- Do not write comments that restate what the code already clearly says
+- Do not leave commented-out dead code in the codebase
+- Do not leave TODO comments without an owner, ticket reference, or deadline
+- If you feel the need to comment what a method does, rename the method instead
+- ✅ Comments that explain WHY — non-obvious decisions, workarounds, business rules
+- ❌ `// Set loading to true` above `setState(() { _isLoading = true; })`
+- ❌ Section markers like `// Header`, `// Stats`, `// Members section`
+
+---
+
+### DRY — Don't Repeat Yourself
+- If the same logic appears in more than one place, extract it
+- Status strings, priority strings → `lib/constants/chore_constants.dart`
+- Category icons, priority colors, history colors → `lib/utils/category_helpers.dart`
+- Date formatting, time ago, date parsing → `lib/utils/date_helpers.dart`
+- ✅ `CategoryHelpers.iconFor(category)` from shared utility
+- ❌ Same `switch (category)` block copied in 4 files
+
+---
+
+### SOLID Principles
+
+**Single Responsibility**
+- Each class has one reason to change
+- Widgets handle UI only — no formatting logic, no direct API calls
+- Formatting, date transforms, and string mapping go in extensions or utils
+
+**Open/Closed**
+- Use enums or constant classes instead of growing if/switch chains
+- New statuses, types, or categories should not require editing existing methods
+- ✅ `ChoreStatus.done` from constants
+- ❌ `'done'` string literal scattered across multiple files
+
+**Dependency Inversion**
+- Services are injected into consumers — never instantiated inline inside widget callbacks
+- ✅ `final ChoreService _choreService = ChoreService(ApiClient());` as a class field
+- ❌ `final service = ChoreService(ApiClient());` inside a button callback
+
+---
+
+### Adding New Features Checklist
+When adding any new feature that involves an API call:
+- [ ] API call goes in the appropriate service class in `lib/services/`
+- [ ] Widget only calls the service method, not dio directly
+- [ ] Both success and error states are handled and visible in the UI
+- [ ] `setState` is guarded with `if (mounted)` and expanded multi-line
+- [ ] No business logic lives inside `data: {}` parameters
+- [ ] No unnecessary comments — code is self-explanatory or explains WHY
+- [ ] No string literals duplicated — use constants from `lib/constants/`
+- [ ] No logic duplicated from an existing utility or service
+- [ ] Shared helpers used: `CategoryHelpers`, `DateHelpers` from `lib/utils/`

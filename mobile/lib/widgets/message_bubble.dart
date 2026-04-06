@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../config/api_config.dart';
 import '../config/theme.dart';
 import '../models/message.dart';
+import '../utils/category_helpers.dart';
 import 'link_preview.dart';
 import 'reaction_picker.dart';
 import 'voice_message_player.dart';
@@ -46,18 +47,6 @@ class MessageBubble extends StatelessWidget {
       return '$hour:$minute';
     } catch (_) {
       return '';
-    }
-  }
-
-  IconData _categoryIcon(String category) {
-    switch (category) {
-      case 'cleaning': return Icons.cleaning_services_rounded;
-      case 'cooking': return Icons.restaurant_rounded;
-      case 'dishwashing': return Icons.local_laundry_service_rounded;
-      case 'laundry': return Icons.dry_cleaning_rounded;
-      case 'gardening': return Icons.grass_rounded;
-      case 'shopping': return Icons.shopping_cart_rounded;
-      default: return Icons.task_rounded;
     }
   }
 
@@ -394,7 +383,7 @@ class MessageBubble extends StatelessWidget {
                 color: categoryColor.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(_categoryIcon(chore.category), size: 18, color: categoryColor),
+              child: Icon(CategoryHelpers.iconFor(chore.category), size: 18, color: categoryColor),
             ),
             const SizedBox(width: 10),
             Flexible(

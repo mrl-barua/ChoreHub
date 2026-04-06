@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/theme.dart';
 import '../../providers/family_provider.dart';
 import '../../services/api_client.dart';
+import '../../services/family_service.dart';
 
 class FamilySettingsScreen extends ConsumerStatefulWidget {
   const FamilySettingsScreen({super.key});
@@ -12,6 +13,7 @@ class FamilySettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _FamilySettingsScreenState extends ConsumerState<FamilySettingsScreen> {
+  final FamilyService _familyService = FamilyService(ApiClient());
   final _nameController = TextEditingController();
   bool _isSaving = false;
 
@@ -33,10 +35,11 @@ class _FamilySettingsScreenState extends ConsumerState<FamilySettingsScreen> {
     if (family == null || _nameController.text.trim().isEmpty) return;
     setState(() => _isSaving = true);
     try {
-      await ApiClient().dio.patch('/families/${family.id}', data: {'name': _nameController.text.trim()});
+      await _familyService.updateFamilyName(family.id, _nameController.text.trim());
       await ref.read(familyProvider.notifier).loadFamilies();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Family name updated')));
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Failed to update family name: $e');
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to update')));
     }
     if (mounted) setState(() => _isSaving = false);
@@ -47,10 +50,11 @@ class _FamilySettingsScreenState extends ConsumerState<FamilySettingsScreen> {
     if (family == null) return;
     final newRole = currentRole == 'admin' ? 'member' : 'admin';
     try {
-      await ApiClient().dio.patch('/families/${family.id}/members/$userId/role', data: {'role': newRole});
+      await _familyService.changeMemberRole(family.id, userId, newRole);
       await ref.read(familyProvider.notifier).loadMembers();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Role changed to $newRole')));
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Failed to change role: $e');
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to change role')));
     }
   }
@@ -65,7 +69,6 @@ class _FamilySettingsScreenState extends ConsumerState<FamilySettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // Family name
           const Text('Family Name', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Row(
@@ -85,7 +88,6 @@ class _FamilySettingsScreenState extends ConsumerState<FamilySettingsScreen> {
           ),
           const SizedBox(height: 32),
 
-          // Member roles
           const Text('Member Roles', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
           Text('Tap to toggle admin/member role', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
