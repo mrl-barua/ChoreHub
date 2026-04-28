@@ -88,6 +88,7 @@ model ChoreHistory {
   action    String
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([familyId, action, createdAt])
   @@map("chore_history")
 }
 

@@ -18,6 +18,9 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/pressable.dart';
 import '../../widgets/weekly_summary_card.dart';
 import '../../widgets/suggestions_card.dart';
+import '../../models/insights.dart';
+import '../../services/insights_service.dart';
+import '../../widgets/insights_card.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -29,6 +32,8 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   final ChoreService _choreService = ChoreService(ApiClient());
   final FamilyService _familyService = FamilyService(ApiClient());
+  final InsightsService _insightsService = InsightsService(ApiClient());
+  InsightsData? _insightsData;
 
   List<Chore> _myChores = [];
   List<Chore> _pendingAssignments = [];
@@ -81,6 +86,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         debugPrint('Failed to load suggestions: $e');
       }
 
+      InsightsData? insightsData;
+      try {
+        insightsData = await _insightsService.loadInsights(family.id);
+      } catch (e) {
+        debugPrint('Failed to load insights: $e');
+      }
+
       final allChores = results[0] as List<Chore>;
       final history = results[1] as List<ChoreHistory>;
       final analytics = results[2] as Map<String, dynamic>;
@@ -112,10 +124,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           _streak = streak;
           _weeklySummary = weeklySummary;
           _suggestions = suggestions;
+          _insightsData = insightsData;
         });
       }
     } catch (e) {
       debugPrint('Failed to load dashboard data: $e');
+    }
+  }
+
+  Future<void> _onReschedule(String choreId, int dayOfWeek, int hour) async {
+    final family = ref.read(familyProvider).currentFamily;
+    if (family == null) return;
+    try {
+      await _insightsService.rescheduleChore(family.id, choreId, dayOfWeek, hour);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Schedule updated')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update schedule')),
+        );
+      }
     }
   }
 
@@ -215,6 +247,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               if (_weeklySummary != null)
                 AnimatedListItem(index: 2, child: WeeklySummaryCard(data: _weeklySummary!)),
               if (_weeklySummary != null) const SizedBox(height: 12),
+
+              if (_insightsData != null)
+                AnimatedListItem(
+                  index: 3,
+                  child: InsightsCard(data: _insightsData!, onReschedule: _onReschedule),
+                ),
+              if (_insightsData != null) const SizedBox(height: 12),
 
               if (_suggestions.isNotEmpty)
                 AnimatedListItem(index: 3, child: SuggestionsCard(suggestions: _suggestions)),

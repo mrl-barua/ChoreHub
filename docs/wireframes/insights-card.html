@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=375,initial-scale=1">
+<title>ChoreHub — AI Insights Card Wireframe</title>
+<style>
+  /* Intentionally rough sketch aesthetic — system fonts, no color, thin borders */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #1a1a1a; /* ChoreHub dark theme */
+    color: #e8e8e8;
+    padding: 16px;
+    max-width: 375px;
+    margin: 0 auto;
+  }
+  .phone-frame {
+    border: 2px dashed #555;
+    border-radius: 12px;
+    padding: 16px;
+    background: #121212;
+  }
+  .screen-label {
+    font-size: 10px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .dashboard-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: #aaa;
+    margin-bottom: 4px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed #333;
+  }
+  .subtext { font-size: 11px; color: #666; margin-bottom: 12px; }
+  .insights-card {
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 14px;
+    background: #1e1e1e;
+    margin-bottom: 12px;
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; color: #e8e8e8; }
+  .ai-badge {
+    font-size: 9px;
+    border: 1px solid #666;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #888;
+    letter-spacing: 0.5px;
+  }
+  .divider { border: none; border-top: 1px dashed #2e2e2e; margin: 10px 0; }
+  .timing-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 11px;
+  }
+  .timing-icon { font-size: 13px; margin-top: 1px; }
+  .timing-text { color: #ccc; line-height: 1.4; }
+  .timing-suggested { color: #e8e8e8; font-weight: 500; }
+  .annotation { font-size: 9px; color: #444; font-style: italic; margin-top: 3px; }
+  .member-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 7px;
+  }
+  .member-avatar {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 1px solid #555;
+    background: #2a2a2a;
+    font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    color: #aaa;
+  }
+  .member-name { font-size: 11px; color: #ccc; width: 40px; flex-shrink: 0; }
+  .bar-track {
+    flex: 1;
+    background: #2a2a2a;
+    border-radius: 3px;
+    height: 6px;
+    position: relative;
+  }
+  .bar-prev { position: absolute; height: 6px; border-radius: 3px; background: #444; }
+  .bar-curr { position: absolute; height: 6px; border-radius: 3px; background: #777; }
+  .bar-pct { font-size: 10px; color: #888; width: 28px; text-align: right; flex-shrink: 0; }
+  .drift-chip {
+    font-size: 9px;
+    border: 1px solid #666;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #aaa;
+    flex-shrink: 0;
+  }
+  .drift-chip.alert { border-color: #888; color: #ccc; }
+  .fairness-row { display: flex; align-items: center; gap: 10px; }
+  .fairness-score { font-size: 24px; font-weight: 700; color: #e8e8e8; line-height: 1; }
+  .fairness-label { font-size: 10px; color: #777; margin-top: 2px; }
+  .fairness-scale {
+    flex: 1; height: 6px;
+    background: linear-gradient(to right, #333, #555, #888);
+    border-radius: 3px; position: relative;
+  }
+  .fairness-cursor {
+    position: absolute; top: -4px; width: 2px; height: 14px;
+    background: #e8e8e8; border-radius: 1px; left: 71%;
+  }
+  .existing-card {
+    border: 1px dashed #333;
+    border-radius: 8px;
+    padding: 10px 14px;
+    background: #161616;
+    margin-bottom: 8px;
+  }
+  .existing-label { font-size: 12px; color: #555; }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+  <div class="screen-label">ChoreHub — Dashboard · AI Insights Card (wireframe)</div>
+  <div class="dashboard-header">Good evening, Sarah 👋</div>
+  <div class="subtext">Smith Family · 3 pending chores</div>
+
+  <!-- AI INSIGHTS CARD: data state (familySampleSize >= 20) -->
+  <div class="insights-card">
+    <div class="card-header">
+      <span class="card-title">AI Insights</span>
+      <span class="ai-badge">BETA · 14-day window</span>
+    </div>
+
+    <!-- SECTION 1: Timing Suggestions (display-only, no tap action in Phase 1) -->
+    <div class="section-title">Timing Suggestions</div>
+    <div class="timing-row">
+      <span class="timing-icon">🕐</span>
+      <div class="timing-text">
+        <strong>Dishes</strong> —
+        <span class="timing-suggested">Usually done Sunday evening (82%)</span>
+        <div class="annotation">label generated server-side · display only in Phase 1</div>
+      </div>
+    </div>
+    <div class="timing-row">
+      <span class="timing-icon">🕐</span>
+      <div class="timing-text">
+        <strong>Vacuuming</strong> —
+        <span class="timing-suggested">Usually done Friday afternoon (74%)</span>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- SECTION 2: Member Engagement (thisWeekCount vs prevWeekCount) -->
+    <div class="section-title">This Week vs Last Week</div>
+    <div class="member-row">
+      <div class="member-avatar">S</div>
+      <div class="member-name">Sarah</div>
+      <div class="bar-track">
+        <div class="bar-prev" style="width:88%"></div>
+        <div class="bar-curr" style="width:91%"></div>
+      </div>
+      <div class="bar-pct">+3%</div>
+      <div class="drift-chip">9 done</div>
+    </div>
+    <div class="member-row">
+      <div class="member-avatar">M</div>
+      <div class="member-name">Mike</div>
+      <div class="bar-track">
+        <div class="bar-prev" style="width:80%"></div>
+        <div class="bar-curr" style="width:42%"></div>
+      </div>
+      <div class="bar-pct">−38%</div>
+      <!-- driftAlert=true badge — the 'whoa' moment -->
+      <div class="drift-chip alert">⚠ drift</div>
+    </div>
+    <div class="member-row">
+      <div class="member-avatar">E</div>
+      <div class="member-name">Emma</div>
+      <div class="bar-track">
+        <div class="bar-prev" style="width:55%"></div>
+        <div class="bar-curr" style="width:65%"></div>
+      </div>
+      <div class="bar-pct">+10%</div>
+      <div class="drift-chip">7 done</div>
+    </div>
+    <div class="annotation" style="margin-top:4px">darker = last week · lighter = this week · trend from memberScores[n].trend</div>
+
+    <hr class="divider">
+
+    <!-- SECTION 3: Family Balance (hidden when fairnessScore === null / memberCount < 2) -->
+    <div class="section-title">Family Balance</div>
+    <div class="fairness-row">
+      <div>
+        <div class="fairness-score">71</div>
+        <div class="fairness-label">/ 100 · Good</div>
+      </div>
+      <div style="flex:1">
+        <div class="fairness-scale"><div class="fairness-cursor"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:3px">
+          <span class="annotation">Unbalanced</span>
+          <span class="annotation">Balanced</span>
+        </div>
+      </div>
+    </div>
+    <div class="annotation" style="margin-top:4px">Sarah 42% · Mike 18% · Emma 40% · rounding ±1% is expected</div>
+
+  </div>
+  <!-- END AI INSIGHTS CARD -->
+
+  <div class="existing-card"><div class="existing-label">📋 Pending Chores (3) ···</div></div>
+  <div class="existing-card"><div class="existing-label">📊 Weekly Summary ···</div></div>
+</div>
+
+<!--
+Design decisions:
+1. Timing suggestions are display-only in Phase 1. No PATCH endpoint. Labels are server-generated strings.
+2. Member engagement uses absolute counts (thisWeekCount, prevWeekCount) not rates.
+   Drift badge sourced from memberScores[n].driftAlert (trend < -0.20).
+3. Family Balance section hidden entirely when fairnessScore === null (single-member families).
+   Integer percentage rounding may not sum to exactly 100 — documented and acceptable.
+4. Cold-start state (familySampleSize < 20) replaces sections 1-3 with a progress bar.
+   Not shown in this wireframe — see design doc cold-start section.
+-->
+</body>
+</html>

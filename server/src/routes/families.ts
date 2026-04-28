@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { computeTimingPatterns, computeEngagementScores, computeFairnessIndex } from '../services/insightsService';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -266,6 +267,104 @@ router.get('/:id/challenges', authenticate, async (req: AuthRequest, res: Respon
     }
     res.json(result);
   } catch (error) { res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Insights
+router.get('/:id/insights', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const familyId = String(req.params.id);
+
+    // Verify membership
+    const isMember = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId: req.userId! } },
+    });
+    if (!isMember) { res.status(403).json({ error: 'Not a member of this family' }); return; }
+
+    const now = new Date();
+    const d90 = new Date(now); d90.setDate(now.getDate() - 90);
+    const d14 = new Date(now); d14.setDate(now.getDate() - 14);
+    // This week: Monday to now
+    const thisWeekStart = new Date(now); thisWeekStart.setDate(now.getDate() - now.getDay() + 1); thisWeekStart.setHours(0, 0, 0, 0);
+    const prevWeekStart = new Date(thisWeekStart); prevWeekStart.setDate(thisWeekStart.getDate() - 7);
+
+    const [members, chores, history90d, history14d, thisWeekHistory, prevWeekHistory] = await Promise.all([
+      prisma.familyMember.findMany({ where: { familyId }, include: { family: true } }),
+      prisma.chore.findMany({ where: { familyId }, select: { id: true, title: true } }),
+      prisma.choreHistory.findMany({ where: { familyId, action: { startsWith: 'completed' }, createdAt: { gte: d90 } } }),
+      prisma.choreHistory.findMany({ where: { familyId, action: { startsWith: 'completed' }, createdAt: { gte: d14 } } }),
+      prisma.choreHistory.findMany({ where: { familyId, action: { startsWith: 'completed' }, createdAt: { gte: thisWeekStart } } }),
+      prisma.choreHistory.findMany({ where: { familyId, action: { startsWith: 'completed' }, createdAt: { gte: prevWeekStart, lt: thisWeekStart } } }),
+    ]);
+
+    // Resolve member names
+    const memberUserIds = members.map((m) => m.userId);
+    const users = await prisma.user.findMany({
+      where: { id: { in: memberUserIds } },
+      select: { id: true, displayName: true },
+    });
+    const userMap = Object.fromEntries(users.map((u) => [u.id, u.displayName]));
+    const memberEntries = members.map((m) => ({ userId: m.userId, name: userMap[m.userId] || 'Unknown' }));
+
+    const timingSuggestions = computeTimingPatterns(chores, history90d as any);
+    const memberScores = computeEngagementScores(memberEntries, thisWeekHistory as any, prevWeekHistory as any);
+    const fairness = computeFairnessIndex(memberEntries, history14d as any);
+    const driftAlerts = detectDriftAlerts(memberScores);
+
+    res.json({
+      familySampleSize: history90d.length,
+      timingSuggestions,
+      memberScores,
+      fairnessScore: fairness.score,
+      fairnessDistribution: fairness.distribution,
+      driftAlerts,
+    });
+  } catch (error) {
+    console.error('Insights error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Reschedule a chore based on a suggested timing pattern
+router.patch('/:id/chores/:choreId/reschedule', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const familyId = String(req.params.id);
+    const choreId = String(req.params.choreId);
+    const userId = (req as any).user.userId;
+    const { dayOfWeek, hour } = req.body;
+
+    if (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
+      res.status(400).json({ error: 'dayOfWeek must be an integer between 0 and 6' });
+      return;
+    }
+    if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+      res.status(400).json({ error: 'hour must be an integer between 0 and 23' });
+      return;
+    }
+
+    const isMember = await prisma.familyMember.findUnique({
+      where: { familyId_userId: { familyId, userId } },
+    });
+    if (!isMember) { res.status(403).json({ error: 'Not a member of this family' }); return; }
+
+    const chore = await prisma.chore.findFirst({ where: { id: choreId, familyId } });
+    if (!chore) { res.status(404).json({ error: 'Chore not found' }); return; }
+
+    const now = new Date();
+    const daysUntil = (dayOfWeek - now.getDay() + 7) % 7;
+    const nextDate = new Date(now);
+    nextDate.setDate(now.getDate() + (daysUntil === 0 && now.getHours() >= hour ? 7 : daysUntil));
+    nextDate.setHours(hour, 0, 0, 0);
+
+    const updatedChore = await prisma.chore.update({
+      where: { id: choreId },
+      data: { dueDate: nextDate },
+    });
+
+    res.json({ dueDate: updatedChore.dueDate });
+  } catch (error) {
+    console.error('Reschedule chore error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 export default router;
