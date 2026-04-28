@@ -25,6 +25,7 @@ import 'screens/notifications/notification_screen.dart';
 import 'screens/onboarding/welcome_screen.dart';
 import 'screens/chat/chat_screen.dart';
 import 'screens/profile/profile_screen.dart';
+import 'screens/profile/notification_settings_screen.dart';
 import 'widgets/shell_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -182,6 +183,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/swap-requests',
         pageBuilder: (_, state) => _slideUpPage(const SwapRequestsScreen(), state),
+      ),
+      GoRoute(
+        path: '/profile/notification-settings',
+        pageBuilder: (_, state) => _slideUpPage(const NotificationSettingsScreen(), state),
       ),
     ],
   );

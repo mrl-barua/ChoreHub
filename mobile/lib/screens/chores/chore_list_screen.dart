@@ -24,6 +24,17 @@ class _ChoreListScreenState extends ConsumerState<ChoreListScreen> {
   final _searchController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final action = GoRouterState.of(context).uri.queryParameters['action'];
+      if (action == 'create') {
+        context.push('/chores/create');
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();

@@ -355,6 +355,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     const Divider(height: 1, indent: 56),
                     ListTile(
+                      leading: const Icon(Icons.notifications_outlined),
+                      title: const Text('Notification Settings'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.go('/profile/notification-settings'),
+                    ),
+                    const Divider(height: 1, indent: 56),
+                    ListTile(
                       leading: Icon(isOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
                           color: isOnline ? AppTheme.accentGreen : AppTheme.accentOrange),
                       title: const Text('Status'),

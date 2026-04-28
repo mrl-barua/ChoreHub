@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/chore.dart';
 import '../services/api_client.dart';
 import '../services/chore_service.dart';
+import '../services/home_widget_service.dart';
 import 'family_provider.dart';
 
 enum ChoreSort { newest, dueDate, priority }
@@ -92,6 +93,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
       final sorted = _sortChores(filtered, state.sort);
       debugPrint('[Chores] Loaded ${allChores.length} total, ${sorted.length} filtered');
       state = ChoreState(allChores: allChores, chores: sorted, filter: state.filter, sort: state.sort, searchQuery: state.searchQuery, stats: stats, softDeletedIds: state.softDeletedIds);
+      HomeWidgetService.instance.update(ref).ignore();
     } catch (e) {
       debugPrint('[Chores] Load failed: $e');
       state = ChoreState(error: 'Failed to load chores');

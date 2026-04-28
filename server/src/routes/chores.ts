@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { Server } from "socket.io";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { createNotification } from "../services/notification";
 
 const prisma = new PrismaClient();
 
@@ -81,6 +82,9 @@ export default function createChoresRouter(io: Server): Router {
         await recordHistory(chore.id, familyId, req.userId!, "created");
         if (assignedTo) {
           await recordHistory(chore.id, familyId, req.userId!, "assigned");
+          if (assignedTo !== req.userId) {
+            createNotification(assignedTo, familyId, 'chore_assigned', 'New chore assigned', `"${title}" has been assigned to you`, JSON.stringify({ choreId: chore.id }));
+          }
         }
 
         res.status(201).json(chore);
@@ -209,6 +213,11 @@ export default function createChoresRouter(io: Server): Router {
                 actorUserId: req.userId,
               });
             }
+          }
+
+          // Notify creator if different from actor
+          if (chore.createdBy && chore.createdBy !== req.userId) {
+            createNotification(chore.createdBy, chore.familyId, 'chore_completed', 'Chore completed', `"${chore.title}" was marked done`, JSON.stringify({ choreId: chore.id }));
           }
         }
 

@@ -167,7 +167,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final picked = await _imagePicker.pickImage(source: source, imageQuality: 70, maxWidth: 1200);
     if (picked == null) return;
 
+    if (!mounted) return;
     if (mounted) setState(() => _isUploading = true);
+    final uploadController = AppFeedback.loading(context, 'Uploading photo…');
     try {
       final imageUrl = await ref.read(messageProvider.notifier).uploadImage(File(picked.path));
       if (imageUrl != null) {
@@ -178,15 +180,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           choreId: _attachedChore?.id,
           mentionUserIds: _mentionedUserIds.isNotEmpty ? _mentionedUserIds : null,
         );
+        uploadController.success('Photo sent');
         _clearInputState();
         Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+      } else {
+        uploadController.dismiss();
       }
     } catch (_) {
-      if (mounted) {
-        AppFeedback.error(context, 'Failed to upload photo');
-      }
+      uploadController.error('Failed to upload photo');
     } finally {
-      if (mounted) setState(() => _isUploading = false);
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
     }
   }
 

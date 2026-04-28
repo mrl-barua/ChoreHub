@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { createNotification } from '../services/notification';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -168,7 +169,7 @@ router.post('/send', authenticate, async (req: AuthRequest, res: Response): Prom
     }
 
     // Upsert — don't fail if message already exists (sent via socket)
-    await prisma.message.upsert({
+    const message = await prisma.message.upsert({
       where: { id },
       create: {
         id,
@@ -183,6 +184,31 @@ router.post('/send', authenticate, async (req: AuthRequest, res: Response): Prom
       },
       update: {}, // If it exists, don't overwrite
     });
+
+    // Mention detection — fire-and-forget, errors must not break the response
+    try {
+      const mentionMatches = (text as string).match(/@([a-zA-Z0-9_]+)/g) ?? [];
+      if (mentionMatches.length) {
+        const usernames = mentionMatches.map((m: string) => m.slice(1));
+        // Get family members for this family, then filter by username
+        const familyMembers = await prisma.familyMember.findMany({
+          where: { familyId: message.familyId },
+          select: { userId: true },
+        });
+        const familyUserIds = familyMembers.map((fm) => fm.userId);
+        const mentioned = await prisma.user.findMany({
+          where: { username: { in: usernames }, id: { in: familyUserIds } },
+        });
+        const sender = await prisma.user.findUnique({ where: { id: req.userId! }, select: { displayName: true } });
+        for (const u of mentioned) {
+          if (u.id !== req.userId) {
+            createNotification(u.id, familyId, 'mention', 'You were mentioned', `${sender?.displayName ?? 'Someone'} mentioned you`, JSON.stringify({ messageId: message.id, familyId: message.familyId }));
+          }
+        }
+      }
+    } catch (mentionErr) {
+      console.error('[messages] mention notification failed:', mentionErr);
+    }
 
     res.json({ success: true });
   } catch (error) {

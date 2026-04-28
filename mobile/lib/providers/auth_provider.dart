@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
+import '../services/push_notification_service.dart';
 import '../services/socket_service.dart';
 import 'chore_provider.dart';
 import 'family_provider.dart';
@@ -83,6 +84,7 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    await PushNotificationService.instance.unregisterToken();
     SocketService().disconnect();
     await _authService.logout();
     _invalidateAll();

@@ -59,4 +59,67 @@ router.post('/read-all', authenticate, async (req: AuthRequest, res: Response): 
   }
 });
 
+// POST /api/notifications/device-token
+router.post('/device-token', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { token, platform } = req.body;
+  if (!token || !platform) {
+    res.status(400).json({ error: 'token and platform required' });
+    return;
+  }
+  try {
+    const deviceToken = await prisma.deviceToken.upsert({
+      where: { token },
+      update: { userId: req.userId!, lastSeenAt: new Date() },
+      create: { userId: req.userId!, token, platform },
+    });
+    res.json(deviceToken);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to register device token' });
+  }
+});
+
+// DELETE /api/notifications/device-token/:token
+router.delete('/device-token/:token', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { token } = req.params;
+  try {
+    await prisma.deviceToken.deleteMany({ where: { token, userId: req.userId! } });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to remove device token' });
+  }
+});
+
+// GET /api/notifications/preferences
+router.get('/preferences', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const prefs = await prisma.notificationPreference.upsert({
+      where: { userId: req.userId! },
+      update: {},
+      create: { userId: req.userId! },
+    });
+    res.json(prefs);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch preferences' });
+  }
+});
+
+// PATCH /api/notifications/preferences
+router.patch('/preferences', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  const allowed = ['pushEnabled', 'choreAssigned', 'choreCompleted', 'choreDueSoon', 'mention', 'swap', 'dailySummary', 'quietHoursStart', 'quietHoursEnd'];
+  const updates: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) updates[key] = req.body[key];
+  }
+  try {
+    const prefs = await prisma.notificationPreference.upsert({
+      where: { userId: req.userId! },
+      update: updates,
+      create: { userId: req.userId!, ...updates },
+    });
+    res.json(prefs);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update preferences' });
+  }
+});
+
 export default router;

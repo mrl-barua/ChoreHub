@@ -87,15 +87,39 @@ class NotificationScreen extends ConsumerWidget {
                       return GestureDetector(
                         onTap: () {
                           if (!n.read) ref.read(notificationProvider.notifier).markRead(n.id);
-                          final swapTypes = ['swap_request', 'swap_accepted', 'swap_declined', 'swap_cancelled'];
-                          if (swapTypes.contains(n.type) && n.data != null) {
+                          Map<String, dynamic> data = {};
+                          if (n.data != null) {
                             try {
-                              final data = jsonDecode(n.data!) as Map<String, dynamic>;
+                              data = jsonDecode(n.data!) as Map<String, dynamic>;
+                            } catch (_) {}
+                          }
+                          switch (n.type) {
+                            case 'chore_assigned':
+                            case 'chore_completed':
+                            case 'chore_due_soon':
                               final choreId = data['choreId'] as String?;
                               if (choreId != null && context.mounted) {
-                                context.push('/chores/$choreId');
+                                context.go('/chores/$choreId');
                               }
-                            } catch (_) {}
+                              break;
+                            case 'mention':
+                              final msgId = data['messageId'] as String?;
+                              final famId = data['familyId'] as String?;
+                              if (context.mounted) {
+                                context.go('/chat${msgId != null ? '?messageId=$msgId' : ''}${famId != null ? (msgId != null ? '&' : '?') + 'familyId=$famId' : ''}');
+                              }
+                              break;
+                            case 'swap_request':
+                            case 'swap_accepted':
+                            case 'swap_declined':
+                            case 'swap_cancelled':
+                              final choreId = data['choreId'] as String?;
+                              if (choreId != null && context.mounted) {
+                                context.go('/chores/$choreId');
+                              }
+                              break;
+                            default:
+                              break;
                           }
                         },
                         child: Container(
