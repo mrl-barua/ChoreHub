@@ -83,6 +83,9 @@ class _ChallengesScreenState extends ConsumerState<ChallengesScreen> {
                 endDate: DateTime.now().add(const Duration(days: 7)).toIso8601String(),
               );
               _loadChallenges();
+              if (mounted) {
+                AppFeedback.success(context, 'Challenge created');
+              }
             } catch (e) {
               debugPrint('Failed to create challenge: $e');
               if (mounted) {

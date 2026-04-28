@@ -9,12 +9,13 @@ import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
-import familyRoutes from './routes/families';
-import choreRoutes from './routes/chores';
+import createFamiliesRouter from './routes/families';
+import createChoresRouter from './routes/chores';
 import invitationRoutes from './routes/invitations';
 import syncRoutes from './routes/sync';
 import messageRoutes from './routes/messages';
 import notificationRoutes from './routes/notifications';
+import createSwapRequestsRouter from './routes/swap-requests';
 
 dotenv.config();
 
@@ -245,12 +246,13 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/families', familyRoutes);
-app.use('/api/chores', choreRoutes);
+app.use('/api/families', createFamiliesRouter(io));
+app.use('/api/chores', createChoresRouter(io));
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/swap-requests', createSwapRequestsRouter(io));
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });

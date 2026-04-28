@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
+import '../../constants/swap_request_constants.dart';
 import '../../models/chore_comment.dart';
 import '../../models/chore_history.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
+import '../../providers/swap_request_provider.dart';
 import '../../services/api_client.dart';
 import '../../services/chore_service.dart';
 import '../../services/feedback_service.dart';
 import '../../utils/category_helpers.dart';
 import '../../utils/date_helpers.dart';
+import '../../widgets/loading_button.dart';
 import '../../widgets/polished_bottom_sheet.dart';
 import '../../widgets/skeleton_loader.dart';
 
@@ -30,12 +34,14 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
   List<ChoreComment> _comments = [];
   final _commentController = TextEditingController();
   bool _showConfetti = false;
+  bool _isSwapLoading = false;
 
   @override
   void initState() {
     super.initState();
     _loadHistory();
     _loadComments();
+    Future.microtask(() => ref.read(swapRequestProvider.notifier).loadForChore(widget.choreId));
   }
 
   @override
@@ -59,7 +65,10 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
     _commentController.clear();
     try {
       final comment = await _choreService.postComment(widget.choreId, text);
-      if (mounted) setState(() => _comments = [..._comments, comment]);
+      if (mounted) {
+        setState(() => _comments = [..._comments, comment]);
+        AppFeedback.success(context, 'Comment added');
+      }
     } catch (e) {
       debugPrint('Failed to post comment: $e');
       if (mounted) {
@@ -116,6 +125,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                     await ref.read(choreProvider.notifier).loadChores();
                     await _loadHistory();
                     if (mounted) {
+                      HapticFeedback.mediumImpact();
                       setState(() => _showConfetti = true);
                       Future.delayed(const Duration(seconds: 2), () {
                         if (mounted) setState(() => _showConfetti = false);
@@ -133,6 +143,97 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showSwapRequestSheet(String choreId) {
+    final members = ref.read(familyProvider).members;
+    final currentUser = ref.read(authProvider).user;
+    String? selectedUserId; // null = open request
+    final noteController = TextEditingController();
+
+    showPolishedBottomSheet(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.swap_horiz_rounded, color: AppTheme.accentBlue, size: 24),
+                  SizedBox(width: 10),
+                  Text('Request Swap', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String?>(
+                value: selectedUserId,
+                decoration: const InputDecoration(labelText: 'Swap with'),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('Anyone — open request')),
+                  ...members
+                      .where((m) => m.userId != currentUser?.id)
+                      .map((m) => DropdownMenuItem(
+                            value: m.userId,
+                            child: Text(m.user?.displayName ?? m.userId),
+                          )),
+                ],
+                onChanged: (val) => setSheetState(() => selectedUserId = val),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: noteController,
+                decoration: const InputDecoration(hintText: 'Add a note (optional)'),
+                maxLength: 200,
+                maxLines: 2,
+                minLines: 1,
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: LoadingButton(
+                  label: 'Send Request',
+                  isLoading: _isSwapLoading,
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    if (mounted) {
+                      setState(() {
+                        _isSwapLoading = true;
+                      });
+                    }
+                    try {
+                      await ref.read(swapRequestProvider.notifier).createSwap(
+                            choreId: choreId,
+                            toUserId: selectedUserId,
+                            message: noteController.text.trim().isEmpty
+                                ? null
+                                : noteController.text.trim(),
+                          );
+                      if (mounted) AppFeedback.success(context, 'Swap request sent');
+                    } catch (e) {
+                      if (mounted) AppFeedback.error(context, 'Failed to send swap request');
+                    } finally {
+                      if (mounted) {
+                        setState(() {
+                          _isSwapLoading = false;
+                        });
+                      }
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -199,6 +300,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
     final family = ref.watch(familyProvider);
     final currentUser = ref.watch(authProvider).user;
     final choreState = ref.watch(choreProvider);
+    final swapState = ref.watch(swapRequestProvider);
 
     final choreList = choreState.allChores.isNotEmpty ? choreState.allChores : choreState.chores;
     final chore = choreList.where((c) => c.id == widget.choreId).firstOrNull;
@@ -227,6 +329,52 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         actions: [
+          if (currentUser != null && chore.assignedTo == currentUser.id && !chore.isDone)
+            IconButton(
+              icon: const Icon(Icons.swap_horiz_rounded, color: AppTheme.accentBlue),
+              tooltip: 'Request swap',
+              onPressed: () => _showSwapRequestSheet(chore.id),
+            ),
+          Builder(builder: (ctx) {
+            final outgoing = swapState.outgoing
+                .where((s) =>
+                    s.choreId == chore.id &&
+                    s.status == SwapRequestStatus.pending)
+                .toList();
+            if (outgoing.isEmpty) return const SizedBox.shrink();
+            return TextButton.icon(
+              icon: const Icon(Icons.pending_rounded, size: 16),
+              label: const Text('Swap pending', style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(foregroundColor: AppTheme.accentOrange),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: ctx,
+                  builder: (dialogCtx) => AlertDialog(
+                    title: const Text('Cancel swap request?'),
+                    content: const Text('The recipient will be notified.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogCtx, false),
+                        child: const Text('Keep'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogCtx, true),
+                        child: Text('Cancel request', style: TextStyle(color: AppTheme.accentRed)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  try {
+                    await ref.read(swapRequestProvider.notifier).cancel(outgoing.first.id);
+                    if (ctx.mounted) AppFeedback.success(ctx, 'Swap request cancelled');
+                  } catch (e) {
+                    if (ctx.mounted) AppFeedback.error(ctx, 'Failed to cancel');
+                  }
+                }
+              },
+            );
+          }),
           IconButton(
             icon: const Icon(Icons.swap_horiz_rounded),
             tooltip: 'Reassign',
@@ -254,7 +402,16 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                 ),
               );
               if (confirm == true && context.mounted) {
-                await ref.read(choreProvider.notifier).deleteChore(chore.id);
+                ref.read(choreProvider.notifier).softDelete(chore.id);
+                AppFeedback.success(
+                  context,
+                  'Chore deleted',
+                  action: SnackBarAction(
+                    label: 'Undo',
+                    onPressed: () => ref.read(choreProvider.notifier).cancelSoftDelete(chore.id),
+                  ),
+                  duration: const Duration(seconds: 4),
+                );
                 if (context.mounted) context.pop();
               }
             },
@@ -344,6 +501,84 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                   ),
                 ),
               ],
+
+              Builder(builder: (ctx) {
+                final incoming = swapState.byChoreId[chore.id] ?? [];
+                final myIncoming = incoming
+                    .where((s) =>
+                        s.status == SwapRequestStatus.pending &&
+                        (s.toUserId == currentUser?.id || s.toUserId == null) &&
+                        s.fromUserId != currentUser?.id)
+                    .toList();
+                if (myIncoming.isEmpty) return const SizedBox.shrink();
+                return Column(
+                  children: myIncoming.map((swap) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Card(
+                        color: AppTheme.accentBlue.withValues(alpha: 0.08),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(children: [
+                                const Icon(Icons.swap_horiz_rounded, color: AppTheme.accentBlue, size: 22),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${swap.fromUser?.displayName ?? 'Someone'} wants to swap this chore with you',
+                                    style: const TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ]),
+                              if (swap.message != null && swap.message!.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text('"${swap.message}"',
+                                    style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: AppTheme.textSecondary)),
+                              ],
+                              const SizedBox(height: 14),
+                              Row(children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () async {
+                                      try {
+                                        await ref.read(swapRequestProvider.notifier).respond(
+                                              swap.id, SwapRequestStatus.declined);
+                                        if (context.mounted) AppFeedback.success(context, 'Swap declined');
+                                      } catch (e) {
+                                        if (context.mounted) AppFeedback.error(context, 'Failed to decline');
+                                      }
+                                    },
+                                    style: OutlinedButton.styleFrom(foregroundColor: AppTheme.accentRed),
+                                    child: const Text('Decline'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: FilledButton(
+                                    onPressed: () async {
+                                      try {
+                                        await ref.read(swapRequestProvider.notifier).respond(
+                                              swap.id, SwapRequestStatus.accepted);
+                                        if (context.mounted) AppFeedback.success(context, 'Swap accepted!');
+                                      } catch (e) {
+                                        if (context.mounted) AppFeedback.error(context, 'Failed to accept');
+                                      }
+                                    },
+                                    style: FilledButton.styleFrom(backgroundColor: AppTheme.accentBlue),
+                                    child: const Text('Accept'),
+                                  ),
+                                ),
+                              ]),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                );
+              }),
 
               const SizedBox(height: 20),
 

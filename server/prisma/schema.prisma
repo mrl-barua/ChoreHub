@@ -146,7 +146,7 @@ model ChoreSwapRequest {
   id         String   @id @default(uuid())
   choreId    String   @map("chore_id")
   fromUserId String   @map("from_user_id")
-  toUserId   String   @map("to_user_id")
+  toUserId   String?  @map("to_user_id")
   familyId   String   @map("family_id")
   status     String   @default("pending")
   message    String?

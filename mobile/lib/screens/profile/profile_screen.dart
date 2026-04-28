@@ -9,6 +9,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../services/api_client.dart';
 import '../../services/feedback_service.dart';
 import '../../services/user_service.dart';
+import '../../utils/clipboard_helpers.dart';
 import '../../widgets/animated_list_item.dart';
 import '../../widgets/polished_bottom_sheet.dart';
 import '../../widgets/skeleton_loader.dart';
@@ -324,6 +325,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       leading: const Icon(Icons.email_outlined),
                       title: const Text('Email'),
                       subtitle: Text(user?.email ?? ''),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.copy_rounded, size: 16),
+                        tooltip: 'Copy email',
+                        onPressed: user?.email != null
+                            ? () => copyWithFeedback(context, user!.email!, label: 'Email')
+                            : null,
+                      ),
+                    ),
+                    const Divider(height: 1, indent: 56),
+                    ListTile(
+                      leading: const Icon(Icons.alternate_email_rounded),
+                      title: const Text('Username'),
+                      subtitle: Text('@${user?.username ?? ''}'),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.copy_rounded, size: 16),
+                        tooltip: 'Copy username',
+                        onPressed: user != null
+                            ? () => copyWithFeedback(context, user.username, label: 'Username')
+                            : null,
+                      ),
                     ),
                     const Divider(height: 1, indent: 56),
                     ListTile(
@@ -362,6 +383,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       value: _choreReminders,
                       onChanged: (v) async {
                         setState(() => _choreReminders = v);
+                        AppFeedback.info(context, 'Preferences saved');
                         await _prefStorage.write(key: 'pref_chore_reminders', value: v.toString());
                       },
                     ),
@@ -373,6 +395,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       value: _chatMentions,
                       onChanged: (v) async {
                         setState(() => _chatMentions = v);
+                        AppFeedback.info(context, 'Preferences saved');
                         await _prefStorage.write(key: 'pref_chat_mentions', value: v.toString());
                       },
                     ),
@@ -384,6 +407,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       value: _assignmentAlerts,
                       onChanged: (v) async {
                         setState(() => _assignmentAlerts = v);
+                        AppFeedback.info(context, 'Preferences saved');
                         await _prefStorage.write(key: 'pref_assignment_alerts', value: v.toString());
                       },
                     ),

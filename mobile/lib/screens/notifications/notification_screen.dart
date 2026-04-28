@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
 import '../../providers/notification_provider.dart';
 
@@ -12,6 +14,9 @@ class NotificationScreen extends ConsumerWidget {
       case 'chore_completed': return Icons.check_circle_rounded;
       case 'mention': return Icons.alternate_email_rounded;
       case 'swap_request': return Icons.swap_horiz_rounded;
+      case 'swap_accepted': return Icons.check_circle_rounded;
+      case 'swap_declined': return Icons.cancel_rounded;
+      case 'swap_cancelled': return Icons.remove_circle_outline_rounded;
       case 'challenge_complete': return Icons.emoji_events_rounded;
       default: return Icons.notifications_rounded;
     }
@@ -23,6 +28,9 @@ class NotificationScreen extends ConsumerWidget {
       case 'chore_completed': return AppTheme.accentGreen;
       case 'mention': return AppTheme.accentBlue;
       case 'swap_request': return AppTheme.accentOrange;
+      case 'swap_accepted': return AppTheme.accentGreen;
+      case 'swap_declined': return AppTheme.accentRed;
+      case 'swap_cancelled': return AppTheme.textSecondary;
       case 'challenge_complete': return const Color(0xFFFFD700);
       default: return Colors.grey;
     }
@@ -79,6 +87,16 @@ class NotificationScreen extends ConsumerWidget {
                       return GestureDetector(
                         onTap: () {
                           if (!n.read) ref.read(notificationProvider.notifier).markRead(n.id);
+                          final swapTypes = ['swap_request', 'swap_accepted', 'swap_declined', 'swap_cancelled'];
+                          if (swapTypes.contains(n.type) && n.data != null) {
+                            try {
+                              final data = jsonDecode(n.data!) as Map<String, dynamic>;
+                              final choreId = data['choreId'] as String?;
+                              if (choreId != null && context.mounted) {
+                                context.push('/chores/$choreId');
+                              }
+                            } catch (_) {}
+                          }
                         },
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 8),

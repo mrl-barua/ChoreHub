@@ -8,6 +8,7 @@ import '../../providers/family_provider.dart';
 import '../../services/api_client.dart';
 import '../../services/family_service.dart';
 import '../../services/feedback_service.dart';
+import '../../utils/clipboard_helpers.dart';
 import '../../widgets/animated_list_item.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/pressable.dart';
@@ -85,18 +86,17 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     );
     if (confirm != true) return;
 
-    try {
-      await _familyService.removeMember(family.id, targetUserId);
-      await ref.read(familyProvider.notifier).refreshWithSync();
-      await ref.read(familyProvider.notifier).loadMemberStats();
-      if (mounted) {
-        AppFeedback.success(context, '$displayName removed');
-      }
-    } catch (e) {
-      debugPrint('Failed to remove member: $e');
-      if (mounted) {
-        AppFeedback.error(context, 'Failed to remove member');
-      }
+    ref.read(familyProvider.notifier).softRemoveMember(targetUserId);
+    if (mounted) {
+      AppFeedback.success(
+        context,
+        'Member removed',
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => ref.read(familyProvider.notifier).cancelSoftRemoveMember(targetUserId),
+        ),
+        duration: const Duration(seconds: 4),
+      );
     }
   }
 
@@ -231,6 +231,11 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                               ),
                             ],
                           ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.copy_rounded, size: 18, color: Colors.white70),
+                          tooltip: 'Copy family ID',
+                          onPressed: () => copyWithFeedback(context, family.currentFamily!.id, label: 'Family ID'),
                         ),
                       ],
                     ),

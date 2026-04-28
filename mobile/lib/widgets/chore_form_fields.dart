@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../models/family_member.dart';
 import 'form_section.dart';
+import 'loading_button.dart';
 
 const _categories = ['cleaning', 'cooking', 'dishwashing', 'laundry', 'gardening', 'shopping', 'other'];
 const _timeSlots = ['morning', 'lunch', 'evening'];
@@ -271,15 +272,10 @@ class _ChoreFormFieldsState extends State<ChoreFormFields> {
           valueListenable: _ctrl.titleController,
           builder: (context, titleValue, _) {
             final isValid = titleValue.text.trim().isNotEmpty;
-            return FilledButton(
+            return LoadingButton(
+              label: widget.submitLabel,
+              isLoading: widget.isLoading,
               onPressed: isValid && !widget.isLoading ? widget.onSubmit : null,
-              child: widget.isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : Text(widget.submitLabel),
             );
           },
         ),

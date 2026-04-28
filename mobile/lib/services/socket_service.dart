@@ -19,6 +19,10 @@ class SocketService {
   final StreamController<Map<String, dynamic>> _reactionController = StreamController<Map<String, dynamic>>.broadcast();
   final StreamController<Map<String, dynamic>> _readReceiptController = StreamController<Map<String, dynamic>>.broadcast();
   final StreamController<String> _deleteController = StreamController<String>.broadcast();
+  final StreamController<Map<String, dynamic>> _swapCreatedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _swapUpdatedController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Message> get onMessage => _messageController.stream;
   Stream<String> get onTyping => _typingController.stream;
@@ -26,6 +30,8 @@ class SocketService {
   Stream<Map<String, dynamic>> get onReaction => _reactionController.stream;
   Stream<Map<String, dynamic>> get onReadReceipt => _readReceiptController.stream;
   Stream<String> get onDelete => _deleteController.stream;
+  Stream<Map<String, dynamic>> get onSwapCreated => _swapCreatedController.stream;
+  Stream<Map<String, dynamic>> get onSwapUpdated => _swapUpdatedController.stream;
 
   bool get isConnected => _socket?.connected ?? false;
 
@@ -78,6 +84,16 @@ class SocketService {
     _socket!.on('message_deleted', (data) {
       try { _deleteController.add(data['messageId'] as String); }
       catch (e) { AppLogger.error('Socket', 'Parse delete: $e'); }
+    });
+
+    _socket!.on('swap_request_created', (data) {
+      try { _swapCreatedController.add(data as Map<String, dynamic>); }
+      catch (e) { AppLogger.error('Socket', 'Parse swap_request_created: $e'); }
+    });
+
+    _socket!.on('swap_request_updated', (data) {
+      try { _swapUpdatedController.add(data as Map<String, dynamic>); }
+      catch (e) { AppLogger.error('Socket', 'Parse swap_request_updated: $e'); }
     });
 
     _socket!.onDisconnect((_) {
@@ -153,5 +169,7 @@ class SocketService {
     _reactionController.close();
     _readReceiptController.close();
     _deleteController.close();
+    _swapCreatedController.close();
+    _swapUpdatedController.close();
   }
 }

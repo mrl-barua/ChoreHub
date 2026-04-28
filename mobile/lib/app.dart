@@ -15,6 +15,7 @@ import 'screens/family/family_screen.dart';
 import 'screens/family/create_family_screen.dart';
 import 'screens/family/invite_screen.dart';
 import 'screens/family/invitations_screen.dart';
+import 'screens/chores/swap_requests_screen.dart';
 import 'screens/analytics/analytics_screen.dart';
 
 import 'screens/family/member_detail_screen.dart';
@@ -177,6 +178,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/family/invitations',
         pageBuilder: (_, state) => _slideUpPage(const InvitationsScreen(), state),
+      ),
+      GoRoute(
+        path: '/swap-requests',
+        pageBuilder: (_, state) => _slideUpPage(const SwapRequestsScreen(), state),
       ),
     ],
   );

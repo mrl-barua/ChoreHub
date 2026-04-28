@@ -461,7 +461,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                       ref.read(messageProvider.notifier).toggleReaction(msg.id, emoji);
                                     },
                                     onDelete: isMe ? () {
-                                      ref.read(messageProvider.notifier).deleteMessage(msg.id);
+                                      ref.read(messageProvider.notifier).softDeleteMessage(msg.id);
+                                      AppFeedback.success(
+                                        context,
+                                        'Message deleted',
+                                        action: SnackBarAction(
+                                          label: 'Undo',
+                                          onPressed: () => ref.read(messageProvider.notifier).cancelSoftDeleteMessage(msg.id),
+                                        ),
+                                        duration: const Duration(seconds: 4),
+                                      );
                                     } : null,
                                   ),
                                 ],

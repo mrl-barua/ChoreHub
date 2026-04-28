@@ -23,6 +23,7 @@ import '../../models/insights.dart';
 import '../../services/insights_service.dart';
 import '../../widgets/insights_card.dart';
 import '../../widgets/skeleton_loader.dart';
+import '../../providers/swap_request_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -171,6 +172,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final auth = ref.watch(authProvider);
     final family = ref.watch(familyProvider);
     final chores = ref.watch(choreProvider);
+    final swapState = ref.watch(swapRequestProvider);
 
     if (family.currentFamily == null && !family.isLoading && family.hasLoadError) {
       return Scaffold(
@@ -217,6 +219,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               : ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
             children: [
+              if (swapState.incoming.isNotEmpty)
+                GestureDetector(
+                  onTap: () => context.push('/swap-requests'),
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentOrange.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.accentOrange.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.swap_horiz_rounded, color: AppTheme.accentOrange, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            '${swapState.incoming.length} pending swap request${swapState.incoming.length == 1 ? '' : 's'} — tap to review',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.accentOrange),
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded, color: AppTheme.accentOrange, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
               if (_error != null)
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: AppTheme.spaceM, vertical: AppTheme.spaceS),

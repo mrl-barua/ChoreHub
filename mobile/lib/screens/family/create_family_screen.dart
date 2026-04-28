@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/family_provider.dart';
+import '../../widgets/loading_button.dart';
 
 class CreateFamilyScreen extends ConsumerStatefulWidget {
   const CreateFamilyScreen({super.key});
@@ -51,11 +52,10 @@ class _CreateFamilyScreenState extends ConsumerState<CreateFamilyScreen> {
                 autofocus: true,
               ),
               const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _isSubmitting ? null : _submit,
-                child: _isSubmitting
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Create Family'),
+              LoadingButton(
+                label: 'Create Family',
+                isLoading: _isSubmitting,
+                onPressed: _submit,
               ),
             ],
           ),
