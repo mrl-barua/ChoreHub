@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/feedback_service.dart';
+import '../../widgets/loading_button.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
