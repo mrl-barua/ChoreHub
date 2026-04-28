@@ -27,7 +27,7 @@ import 'screens/chat/chat_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'widgets/shell_screen.dart';
 
-final _rootNavigatorKey = GlobalKey<NavigatorState>();
+final rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 CustomTransitionPage<void> _slideUpPage(Widget child, GoRouterState state) {
@@ -81,7 +81,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.watch(_authChangeNotifierProvider);
 
   return GoRouter(
-    navigatorKey: _rootNavigatorKey,
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/dashboard',
     refreshListenable: authNotifier,
     redirect: (context, state) {
