@@ -32,18 +32,22 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasFamily = ref.watch(familyProvider).currentFamily != null;
+
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
-            // Skip button
-            Align(
-              alignment: Alignment.topRight,
-              child: TextButton(
-                onPressed: () => context.go('/dashboard'),
-                child: Text('Skip', style: TextStyle(color: Colors.grey.shade500)),
-              ),
-            ),
+            if (hasFamily)
+              Align(
+                alignment: Alignment.topRight,
+                child: TextButton(
+                  onPressed: () => context.go('/dashboard'),
+                  child: Text('Skip', style: TextStyle(color: Colors.grey.shade500)),
+                ),
+              )
+            else
+              const SizedBox(height: 48),
             Expanded(
               child: PageView(
                 controller: _pageController,
@@ -207,10 +211,16 @@ class _FirstChorePage extends ConsumerWidget {
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
-            child: FilledButton(
-              onPressed: () => context.go('/dashboard'),
-              child: Text(hasFamily ? 'Go to Dashboard' : 'Skip for Now'),
-            ),
+            child: hasFamily
+                ? FilledButton(
+                    onPressed: () => context.go('/dashboard'),
+                    child: const Text('Go to Dashboard'),
+                  )
+                : FilledButton.icon(
+                    onPressed: () => context.push('/family/create'),
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Create Family'),
+                  ),
           ),
         ],
       ),

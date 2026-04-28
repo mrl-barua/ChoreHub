@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/family_provider.dart';
 import '../../widgets/loading_button.dart';
+import '../../services/feedback_service.dart';
 
 class CreateFamilyScreen extends ConsumerStatefulWidget {
   const CreateFamilyScreen({super.key});
@@ -26,8 +27,15 @@ class _CreateFamilyScreenState extends ConsumerState<CreateFamilyScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
-    await ref.read(familyProvider.notifier).createFamily(_nameController.text.trim());
-    if (mounted) context.pop();
+    try {
+      await ref.read(familyProvider.notifier).createFamily(_nameController.text.trim());
+      if (mounted) context.go('/dashboard');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        AppFeedback.error(context, 'Could not create family. Please try again.');
+      }
+    }
   }
 
   @override
