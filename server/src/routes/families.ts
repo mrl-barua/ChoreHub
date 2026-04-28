@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { computeTimingPatterns, computeEngagementScores, computeFairnessIndex } from '../services/insightsService';
+import { computeTimingPatterns, computeEngagementScores, computeFairnessIndex, detectDriftAlerts } from '../services/insightsService';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -305,13 +305,16 @@ router.get('/:id/insights', authenticate, async (req: AuthRequest, res: Response
     const userMap = Object.fromEntries(users.map((u) => [u.id, u.displayName]));
     const memberEntries = members.map((m) => ({ userId: m.userId, name: userMap[m.userId] || 'Unknown' }));
 
-    const timingSuggestions = computeTimingPatterns(chores, history90d as any);
-    const memberScores = computeEngagementScores(memberEntries, thisWeekHistory as any, prevWeekHistory as any);
+    const tzOffsetMinutes = parseInt(req.query.tzOffsetMinutes as string) || 0;
+    const timingSuggestions = computeTimingPatterns(chores, history90d as any, tzOffsetMinutes);
+    const currentMemberIds = new Set(memberEntries.map((m) => m.userId));
+    const memberScores = computeEngagementScores(memberEntries, thisWeekHistory as any, prevWeekHistory as any)
+      .filter((s) => currentMemberIds.has(s.userId));
     const fairness = computeFairnessIndex(memberEntries, history14d as any);
     const driftAlerts = detectDriftAlerts(memberScores);
 
     res.json({
-      familySampleSize: history90d.length,
+      familySampleSize: history14d.length,
       timingSuggestions,
       memberScores,
       fairnessScore: fairness.score,
@@ -329,7 +332,7 @@ router.patch('/:id/chores/:choreId/reschedule', authenticate, async (req: AuthRe
   try {
     const familyId = String(req.params.id);
     const choreId = String(req.params.choreId);
-    const userId = (req as any).user.userId;
+    const userId = req.userId!;
     const { dayOfWeek, hour } = req.body;
 
     if (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
@@ -349,11 +352,16 @@ router.patch('/:id/chores/:choreId/reschedule', authenticate, async (req: AuthRe
     const chore = await prisma.chore.findFirst({ where: { id: choreId, familyId } });
     if (!chore) { res.status(404).json({ error: 'Chore not found' }); return; }
 
+    const tzOffsetMinutes = parseInt(req.body.tzOffsetMinutes as string) || 0;
     const now = new Date();
-    const daysUntil = (dayOfWeek - now.getDay() + 7) % 7;
-    const nextDate = new Date(now);
-    nextDate.setDate(now.getDate() + (daysUntil === 0 && now.getHours() >= hour ? 7 : daysUntil));
-    nextDate.setHours(hour, 0, 0, 0);
+    // Shift to the user's local time for day/hour comparisons.
+    const localNow = new Date(now.getTime() + tzOffsetMinutes * 60_000);
+    const daysUntil = (dayOfWeek - localNow.getUTCDay() + 7) % 7;
+    const nextLocalDate = new Date(localNow);
+    nextLocalDate.setUTCDate(localNow.getUTCDate() + (daysUntil === 0 && localNow.getUTCHours() >= hour ? 7 : daysUntil));
+    nextLocalDate.setUTCHours(hour, 0, 0, 0);
+    // Convert the local target back to UTC for storage.
+    const nextDate = new Date(nextLocalDate.getTime() - tzOffsetMinutes * 60_000);
 
     const updatedChore = await prisma.chore.update({
       where: { id: choreId },

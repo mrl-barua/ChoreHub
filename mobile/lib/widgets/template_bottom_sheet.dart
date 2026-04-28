@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/theme.dart';
 import '../constants/chore_templates.dart';
 import '../providers/chore_provider.dart';
+import '../services/feedback_service.dart';
 
 void showTemplateBottomSheet(BuildContext context, WidgetRef ref) {
   showModalBottomSheet(
@@ -51,8 +52,10 @@ void showTemplateBottomSheet(BuildContext context, WidgetRef ref) {
                           priority: t.priority,
                         );
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('${t.title} created'), duration: const Duration(seconds: 2)),
+                          AppFeedback.success(
+                            context,
+                            '${t.title} created',
+                            duration: const Duration(seconds: 2),
                           );
                         }
                       },

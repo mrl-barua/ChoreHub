@@ -12,11 +12,13 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
 import '../../providers/message_provider.dart';
+import '../../services/feedback_service.dart';
 import '../../widgets/chore_picker.dart';
 import '../../widgets/date_separator.dart';
 import '../../widgets/mention_suggestions.dart';
 import '../../widgets/message_bubble.dart';
 import '../../widgets/reply_preview.dart';
+import '../../widgets/skeleton_loader.dart';
 import '../../widgets/typing_indicator.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -165,20 +167,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final picked = await _imagePicker.pickImage(source: source, imageQuality: 70, maxWidth: 1200);
     if (picked == null) return;
 
-    setState(() => _isUploading = true);
-    final imageUrl = await ref.read(messageProvider.notifier).uploadImage(File(picked.path));
-    setState(() => _isUploading = false);
-
-    if (imageUrl != null) {
-      ref.read(messageProvider.notifier).sendMessage(
-        'Sent a photo',
-        imageUrl: imageUrl,
-        replyToId: _replyingTo?.id,
-        choreId: _attachedChore?.id,
-        mentionUserIds: _mentionedUserIds.isNotEmpty ? _mentionedUserIds : null,
-      );
-      _clearInputState();
-      Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+    if (mounted) setState(() => _isUploading = true);
+    try {
+      final imageUrl = await ref.read(messageProvider.notifier).uploadImage(File(picked.path));
+      if (imageUrl != null) {
+        ref.read(messageProvider.notifier).sendMessage(
+          'Sent a photo',
+          imageUrl: imageUrl,
+          replyToId: _replyingTo?.id,
+          choreId: _attachedChore?.id,
+          mentionUserIds: _mentionedUserIds.isNotEmpty ? _mentionedUserIds : null,
+        );
+        _clearInputState();
+        Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+      }
+    } catch (_) {
+      if (mounted) {
+        AppFeedback.error(context, 'Failed to upload photo');
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -251,15 +259,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ? 'Shared a chore: ${_attachedChore!.title}'
         : text;
 
-    ref.read(messageProvider.notifier).sendMessage(
-      finalText,
-      choreId: _attachedChore?.id,
-      mentionUserIds: _mentionedUserIds.isNotEmpty ? _mentionedUserIds : null,
-      replyToId: _replyingTo?.id,
-    );
+    try {
+      ref.read(messageProvider.notifier).sendMessage(
+        finalText,
+        choreId: _attachedChore?.id,
+        mentionUserIds: _mentionedUserIds.isNotEmpty ? _mentionedUserIds : null,
+        replyToId: _replyingTo?.id,
+      );
 
-    _clearInputState();
-    Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+      _clearInputState();
+      Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+    } catch (_) {
+      if (mounted) {
+        AppFeedback.error(
+          context,
+          'Failed to send message',
+          action: SnackBarAction(label: 'Retry', onPressed: _send),
+        );
+      }
+    }
   }
 
   void _markVisibleAsRead() {
@@ -307,12 +325,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.wifi_off_rounded, size: 48, color: Colors.grey.shade600),
+              const Icon(Icons.wifi_off_rounded, size: 48, color: AppTheme.textSecondary),
               const SizedBox(height: 16),
               const Text('Connection Problem', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
-              Text('Could not load chat. Check your connection.',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+              const Text('Could not load chat. Check your connection.',
+                  style: TextStyle(fontSize: 14, color: AppTheme.textSecondary)),
               const SizedBox(height: 20),
               FilledButton.icon(
                 onPressed: () => ref.read(familyProvider.notifier).loadFamilies(),
@@ -351,7 +369,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 16),
                 decoration: InputDecoration(
                   hintText: 'Search messages...',
-                  hintStyle: TextStyle(color: Colors.grey.shade500),
+                  hintStyle: const TextStyle(color: AppTheme.textSecondary),
                   border: InputBorder.none,
                   filled: false,
                 ),
@@ -376,7 +394,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 children: [
                   Text(family.currentFamily?.name ?? 'Chat', style: const TextStyle(fontSize: 18)),
                   Text('${family.members.length} members',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w400)),
+                      style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w400)),
                 ],
               ),
               actions: [
@@ -393,21 +411,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               // Messages
               Expanded(
                 child: messages.isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const SkeletonMessageList()
                     : messages.messages.isEmpty
                         ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.chat_bubble_outline_rounded, size: 64, color: Colors.grey.shade700),
+                                const Icon(Icons.chat_bubble_outline_rounded, size: 64, color: AppTheme.surfaceHigh),
                                 const SizedBox(height: 16),
                                 Text(
                                   messages.isSearching ? 'No messages found' : 'No messages yet',
-                                  style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+                                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 16),
                                 ),
                                 if (!messages.isSearching) ...[
                                   const SizedBox(height: 4),
-                                  Text('Say hi to your family!', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                                  const Text('Say hi to your family!', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
                                 ],
                               ],
                             ),
@@ -578,10 +596,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     const SizedBox(width: 4),
                     // Send button
                     Container(
-                      decoration: const BoxDecoration(color: AppTheme.accent, shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                        color: _isUploading ? AppTheme.accent.withValues(alpha: 0.5) : AppTheme.accent,
+                        shape: BoxShape.circle,
+                      ),
                       child: IconButton(
-                        onPressed: _send,
-                        icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                        onPressed: _isUploading ? null : _send,
+                        icon: _isUploading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
                       ),
                     ),
                   ],

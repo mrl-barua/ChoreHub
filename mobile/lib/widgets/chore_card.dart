@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
+import '../constants/chore_constants.dart';
 import '../models/chore.dart';
 import '../utils/category_helpers.dart';
 import '../utils/date_helpers.dart';
@@ -26,14 +27,28 @@ class ChoreCard extends StatefulWidget {
 
 class _ChoreCardState extends State<ChoreCard> {
   bool _isPressed = false;
+  bool _isToggling = false;
 
   Chore get chore => widget.chore;
   Color get _priorityColor => CategoryHelpers.priorityColor(chore.priority);
   Color get _categoryColor => AppTheme.categoryColors[chore.category] ?? AppTheme.categoryColors['other']!;
 
+  Future<void> _handleToggle() async {
+    if (_isToggling) return;
+    if (mounted) setState(() => _isToggling = true);
+    try {
+      widget.onToggle();
+    } finally {
+      if (mounted) setState(() => _isToggling = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    Widget card = GestureDetector(
+    Widget card = AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: _isToggling ? 0.6 : 1.0,
+      child: GestureDetector(
       onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) => setState(() => _isPressed = false),
       onTapCancel: () => setState(() => _isPressed = false),
@@ -66,7 +81,7 @@ class _ChoreCardState extends State<ChoreCard> {
                     child: Row(
                       children: [
                         GestureDetector(
-                          onTap: widget.onToggle,
+                          onTap: _isToggling ? null : _handleToggle,
                           child: TweenAnimationBuilder<double>(
                             tween: Tween(begin: chore.isDone ? 1.0 : 0.0, end: chore.isDone ? 1.0 : 0.0),
                             duration: const Duration(milliseconds: 300),
@@ -137,18 +152,10 @@ class _ChoreCardState extends State<ChoreCard> {
                                       ),
                                     if (chore.isPendingAcceptance) ...[
                                       const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(color: AppTheme.accentOrange.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-                                        child: Text('Awaiting', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.accentOrange)),
-                                      ),
+                                      _StatusBadge(statusKey: 'awaiting', label: 'Awaiting'),
                                     ] else if (chore.isAssignmentDeclined) ...[
                                       const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(color: AppTheme.accentRed.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-                                        child: Text('Declined', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppTheme.accentRed)),
-                                      ),
+                                      _StatusBadge(statusKey: 'declined', label: 'Declined'),
                                     ],
                                     if (chore.recurrence != null) ...[
                                       const SizedBox(width: 6),
@@ -169,6 +176,7 @@ class _ChoreCardState extends State<ChoreCard> {
           ),
         ),
       ),
+      ),
     );
 
     if (widget.onDismissed != null) {
@@ -188,5 +196,28 @@ class _ChoreCardState extends State<ChoreCard> {
     }
 
     return card;
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final String statusKey;
+  final String label;
+
+  const _StatusBadge({required this.statusKey, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = choreStatusColors[statusKey] ?? AppTheme.textSecondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color),
+      ),
+    );
   }
 }

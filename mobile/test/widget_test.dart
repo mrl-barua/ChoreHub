@@ -32,7 +32,7 @@ void main() {
     testWidgets('empty timingSuggestions and null fairnessScore hides card',
         (tester) async {
       final data = InsightsData(
-        familySampleSize: 15,
+        familySampleSize: 25,
         timingSuggestions: const [],
         memberScores: const [
           MemberEngagement(
@@ -55,10 +55,12 @@ void main() {
         familySampleSize: 30,
         timingSuggestions: const [
           TimingSuggestion(
+            choreId: 'c1',
             choreTitle: 'Dishes',
             bestDayOfWeek: 0,
             bestHour: 20,
             label: 'Sunday evening',
+            choreSampleSize: 6,
           ),
         ],
         memberScores: const [
@@ -82,10 +84,12 @@ void main() {
         familySampleSize: 25,
         timingSuggestions: const [
           TimingSuggestion(
+            choreId: 'c1',
             choreTitle: 'Vacuuming',
             bestDayOfWeek: 1,
             bestHour: 10,
             label: 'Monday morning',
+            choreSampleSize: 6,
           ),
         ],
         memberScores: const [
@@ -113,10 +117,12 @@ void main() {
         familySampleSize: 25,
         timingSuggestions: const [
           TimingSuggestion(
+            choreId: 'c1',
             choreTitle: 'Dishes',
             bestDayOfWeek: 0,
             bestHour: 20,
             label: 'Sunday evening',
+            choreSampleSize: 6,
           ),
         ],
         memberScores: const [

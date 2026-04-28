@@ -16,7 +16,7 @@ class AnimatedProgressRing extends StatefulWidget {
     this.size = 120,
     this.strokeWidth = 10,
     this.color = AppTheme.accent,
-    this.backgroundColor = const Color(0xFFE0E0E0),
+    this.backgroundColor = AppTheme.surfaceVariant,
     this.center,
   });
 

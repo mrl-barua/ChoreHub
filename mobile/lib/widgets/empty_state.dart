@@ -6,6 +6,8 @@ class EmptyState extends StatefulWidget {
   final String title;
   final String? subtitle;
   final Widget? action;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   const EmptyState({
     super.key,
@@ -13,6 +15,8 @@ class EmptyState extends StatefulWidget {
     required this.title,
     this.subtitle,
     this.action,
+    this.actionLabel,
+    this.onAction,
   });
 
   @override
@@ -116,6 +120,13 @@ class _EmptyStateState extends State<EmptyState>
                 if (widget.action != null) ...[
                   const SizedBox(height: 28),
                   widget.action!,
+                ],
+                if (widget.actionLabel != null && widget.onAction != null) ...[
+                  const SizedBox(height: 28),
+                  FilledButton(
+                    onPressed: widget.onAction,
+                    child: Text(widget.actionLabel!),
+                  ),
                 ],
               ],
             ),

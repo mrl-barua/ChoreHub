@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/chore_provider.dart';
@@ -8,6 +9,8 @@ import '../../widgets/chore_card.dart';
 import '../../widgets/chore_filter_bar.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/template_bottom_sheet.dart';
+import '../../config/theme.dart';
+import '../../services/feedback_service.dart';
 
 class ChoreListScreen extends ConsumerStatefulWidget {
   const ChoreListScreen({super.key});
@@ -139,7 +142,30 @@ class _ChoreListScreenState extends ConsumerState<ChoreListScreen> {
           const SizedBox(height: 8),
           Expanded(
             child: displayedChores.isEmpty
-                ? EmptyState(
+                ? chores.searchQuery.isNotEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.search_off_rounded, size: 48, color: AppTheme.textSecondary),
+                            const SizedBox(height: AppTheme.spaceM),
+                            Text(
+                              'No results for "${chores.searchQuery}"',
+                              style: const TextStyle(color: AppTheme.textSecondary, fontSize: AppTheme.fontM),
+                            ),
+                            const SizedBox(height: AppTheme.spaceS),
+                            TextButton(
+                              onPressed: () {
+                                setState(() { _showSearch = false; });
+                                _searchController.clear();
+                                ref.read(choreProvider.notifier).setSearchQuery('');
+                              },
+                              child: const Text('Clear search'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : EmptyState(
                     icon: Icons.checklist_rounded,
                     title: chores.filter == 'all' ? 'No chores yet' : 'No ${chores.filter} chores',
                     subtitle: 'Tap the button below to create one.',
@@ -158,15 +184,15 @@ class _ChoreListScreenState extends ConsumerState<ChoreListScreen> {
                             key: ValueKey('complete_${chore.id}'),
                             direction: DismissDirection.endToStart,
                             confirmDismiss: (direction) async {
+                              HapticFeedback.mediumImpact();
                               await ref.read(choreProvider.notifier).toggleStatus(chore.id);
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(chore.isDone ? 'Marked as pending' : 'Marked as done'),
-                                    action: SnackBarAction(
-                                      label: 'Undo',
-                                      onPressed: () => ref.read(choreProvider.notifier).toggleStatus(chore.id),
-                                    ),
+                                AppFeedback.success(
+                                  context,
+                                  chore.isDone ? 'Marked as pending' : 'Marked as done',
+                                  action: SnackBarAction(
+                                    label: 'Undo',
+                                    onPressed: () => ref.read(choreProvider.notifier).toggleStatus(chore.id),
                                   ),
                                 );
                               }

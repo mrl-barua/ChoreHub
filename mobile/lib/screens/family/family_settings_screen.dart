@@ -4,6 +4,7 @@ import '../../config/theme.dart';
 import '../../providers/family_provider.dart';
 import '../../services/api_client.dart';
 import '../../services/family_service.dart';
+import '../../services/feedback_service.dart';
 
 class FamilySettingsScreen extends ConsumerStatefulWidget {
   const FamilySettingsScreen({super.key});
@@ -37,10 +38,10 @@ class _FamilySettingsScreenState extends ConsumerState<FamilySettingsScreen> {
     try {
       await _familyService.updateFamilyName(family.id, _nameController.text.trim());
       await ref.read(familyProvider.notifier).loadFamilies();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Family name updated')));
+      if (mounted) AppFeedback.success(context, 'Family name updated');
     } catch (e) {
       debugPrint('Failed to update family name: $e');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to update')));
+      if (mounted) AppFeedback.error(context, 'Failed to update');
     }
     if (mounted) setState(() => _isSaving = false);
   }
@@ -52,10 +53,10 @@ class _FamilySettingsScreenState extends ConsumerState<FamilySettingsScreen> {
     try {
       await _familyService.changeMemberRole(family.id, userId, newRole);
       await ref.read(familyProvider.notifier).loadMembers();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Role changed to $newRole')));
+      if (mounted) AppFeedback.success(context, 'Role changed to $newRole');
     } catch (e) {
       debugPrint('Failed to change role: $e');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to change role')));
+      if (mounted) AppFeedback.error(context, 'Failed to change role');
     }
   }
 

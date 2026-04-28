@@ -5,6 +5,7 @@ import '../../config/theme.dart';
 import '../../constants/chore_templates.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
+import '../../services/feedback_service.dart';
 
 class WelcomeScreen extends ConsumerStatefulWidget {
   const WelcomeScreen({super.key});
@@ -197,7 +198,7 @@ class _FirstChorePage extends ConsumerWidget {
                       title: t.title, category: t.category, priority: t.priority,
                     );
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${t.title} created!')));
+                      AppFeedback.success(context, '${t.title} created!');
                     }
                   },
                 );

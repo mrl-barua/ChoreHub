@@ -1,4 +1,6 @@
-class TimingSuggestion {
+import 'package:equatable/equatable.dart';
+
+class TimingSuggestion extends Equatable {
   final String choreId;
   final String choreTitle;
   final int bestDayOfWeek; // 0=Sunday
@@ -23,9 +25,12 @@ class TimingSuggestion {
         label: json['label'] as String,
         choreSampleSize: json['choreSampleSize'] as int,
       );
+
+  @override
+  List<Object?> get props => [choreId, choreTitle, bestDayOfWeek, bestHour, label, choreSampleSize];
 }
 
-class MemberEngagement {
+class MemberEngagement extends Equatable {
   final String userId;
   final String name;
   final int thisWeekCount;
@@ -50,9 +55,12 @@ class MemberEngagement {
         trend: (json['trend'] as num).toDouble(),
         driftAlert: json['driftAlert'] as bool,
       );
+
+  @override
+  List<Object?> get props => [userId, name, thisWeekCount, prevWeekCount, trend, driftAlert];
 }
 
-class InsightsData {
+class InsightsData extends Equatable {
   final int familySampleSize;
   final List<TimingSuggestion> timingSuggestions;
   final List<MemberEngagement> memberScores;
@@ -83,4 +91,7 @@ class InsightsData {
                 .map((k, v) => MapEntry(k, (v as num).toInt()))
             : null,
       );
+
+  @override
+  List<Object?> get props => [familySampleSize, timingSuggestions, memberScores, fairnessScore, fairnessDistribution];
 }

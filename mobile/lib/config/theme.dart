@@ -8,6 +8,7 @@ class AppTheme {
   static const Color accentOrange = Color(0xFFFF9F0A);
   static const Color accentRed = Color(0xFFFF453A);
   static const Color accentBlue = Color(0xFF0A84FF);
+  static const Color accentGold = Color(0xFFFFD700);
 
   static const Color priorityHigh = Color(0xFFFF453A);
   static const Color priorityMedium = Color(0xFFFF9F0A);
@@ -57,6 +58,19 @@ class AppTheme {
   static const double fontL = 16;    // section headers, buttons
   static const double fontXL = 20;   // screen titles, names
   static const double fontXXL = 26;  // hero numbers
+
+  // Spacing scale
+  static const double spaceXS = 4;
+  static const double spaceS  = 8;
+  static const double spaceM  = 16;
+  static const double spaceL  = 24;
+  static const double spaceXL = 32;
+
+  // Icon sizes
+  static const double iconSizeS  = 16;
+  static const double iconSizeM  = 20;
+  static const double iconSizeL  = 24;
+  static const double iconSizeXL = 32;
 
   // Shadows
   static List<BoxShadow> get shadowSmall => [

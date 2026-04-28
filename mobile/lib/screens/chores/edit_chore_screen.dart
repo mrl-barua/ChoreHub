@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../config/theme.dart';
 import '../../models/chore.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
-
-const _categories = ['cleaning', 'cooking', 'dishwashing', 'laundry', 'gardening', 'shopping', 'other'];
-const _timeSlots = ['morning', 'lunch', 'evening'];
-const _priorities = ['low', 'medium', 'high'];
-const _recurrences = ['daily', 'weekly', 'monthly'];
+import '../../widgets/chore_form_fields.dart';
 
 class EditChoreScreen extends ConsumerStatefulWidget {
   final String choreId;
@@ -21,21 +16,14 @@ class EditChoreScreen extends ConsumerStatefulWidget {
 
 class _EditChoreScreenState extends ConsumerState<EditChoreScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  late ChoreFormController _formController;
   Chore? _chore;
   bool _isLoading = true;
-
-  late String _category;
-  String? _timeSlot;
-  String? _assignedTo;
-  DateTime? _dueDate;
-  String _priority = 'medium';
-  String? _recurrence;
 
   @override
   void initState() {
     super.initState();
+    _formController = ChoreFormController();
     _loadChore();
   }
 
@@ -44,14 +32,14 @@ class _EditChoreScreenState extends ConsumerState<EditChoreScreen> {
     final choreList = choreState.allChores.isNotEmpty ? choreState.allChores : choreState.chores;
     final chore = choreList.where((c) => c.id == widget.choreId).firstOrNull;
     if (chore != null) {
-      _titleController.text = chore.title;
-      _descriptionController.text = chore.description ?? '';
-      _category = chore.category;
-      _timeSlot = chore.timeSlot;
-      _assignedTo = chore.assignedTo;
-      _dueDate = chore.dueDate != null ? DateTime.tryParse(chore.dueDate!) : null;
-      _priority = chore.priority;
-      _recurrence = chore.recurrence;
+      _formController.titleController.text = chore.title;
+      _formController.descriptionController.text = chore.description ?? '';
+      _formController.category = chore.category;
+      _formController.timeSlot = chore.timeSlot;
+      _formController.assignedTo = chore.assignedTo;
+      _formController.dueDate = chore.dueDate != null ? DateTime.tryParse(chore.dueDate!) : null;
+      _formController.priority = chore.priority;
+      _formController.recurrence = chore.recurrence;
     }
     setState(() {
       _chore = chore;
@@ -61,23 +49,23 @@ class _EditChoreScreenState extends ConsumerState<EditChoreScreen> {
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
+    _formController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate() || _chore == null) return;
 
+    final description = _formController.descriptionController.text.trim();
     final updated = _chore!.copyWith(
-      title: _titleController.text.trim(),
-      category: _category,
-      timeSlot: _timeSlot,
-      assignedTo: _assignedTo,
-      dueDate: _dueDate?.toIso8601String().substring(0, 10),
-      priority: _priority,
-      description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-      recurrence: _recurrence,
+      title: _formController.titleController.text.trim(),
+      category: _formController.category,
+      timeSlot: _formController.timeSlot,
+      assignedTo: _formController.assignedTo,
+      dueDate: _formController.dueDate?.toIso8601String().substring(0, 10),
+      priority: _formController.priority,
+      description: description.isEmpty ? null : description,
+      recurrence: _formController.recurrence,
       updatedAt: DateTime.now().toIso8601String(),
       syncStatus: 'pending',
     );
@@ -86,25 +74,21 @@ class _EditChoreScreenState extends ConsumerState<EditChoreScreen> {
     if (mounted) context.pop();
   }
 
-  Future<void> _pickDate() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _dueDate ?? DateTime.now(),
-      firstDate: DateTime.now().subtract(const Duration(days: 1)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (date != null) setState(() => _dueDate = date);
-  }
-
   @override
   Widget build(BuildContext context) {
     final family = ref.watch(familyProvider);
 
     if (_isLoading) {
-      return Scaffold(appBar: AppBar(title: const Text('Edit Chore')), body: const Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        appBar: AppBar(title: const Text('Edit Chore')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
     }
     if (_chore == null) {
-      return Scaffold(appBar: AppBar(title: const Text('Edit Chore')), body: const Center(child: Text('Chore not found')));
+      return Scaffold(
+        appBar: AppBar(title: const Text('Edit Chore')),
+        body: const Center(child: Text('Chore not found')),
+      );
     }
 
     return Scaffold(
@@ -113,123 +97,12 @@ class _EditChoreScreenState extends ConsumerState<EditChoreScreen> {
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(labelText: 'Title', prefixIcon: Icon(Icons.edit_rounded)),
-                validator: (v) => v == null || v.isEmpty ? 'Enter a title' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Notes', prefixIcon: Icon(Icons.notes_rounded)),
-                maxLines: 3,
-                minLines: 1,
-              ),
-              const SizedBox(height: 20),
-              Text('Category', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _categories.map((cat) {
-                  final isSelected = _category == cat;
-                  final color = AppTheme.categoryColors[cat] ?? Colors.grey;
-                  return ChoiceChip(
-                    label: Text(cat[0].toUpperCase() + cat.substring(1)),
-                    selected: isSelected,
-                    onSelected: (_) => setState(() => _category = cat),
-                    selectedColor: color.withValues(alpha: 0.2),
-                    labelStyle: TextStyle(color: isSelected ? color : Colors.grey.shade600, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500),
-                  );
-                }).toList(),
-              ),
-              if (_category == 'cooking') ...[
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _timeSlot,
-                  decoration: const InputDecoration(labelText: 'Time Slot', prefixIcon: Icon(Icons.schedule_rounded)),
-                  items: _timeSlots.map((t) => DropdownMenuItem(value: t, child: Text(t[0].toUpperCase() + t.substring(1)))).toList(),
-                  onChanged: (v) => setState(() => _timeSlot = v),
-                ),
-              ],
-              const SizedBox(height: 20),
-              Text('Priority', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
-              const SizedBox(height: 8),
-              Row(
-                children: _priorities.map((p) {
-                  final isSelected = _priority == p;
-                  final color = p == 'high' ? AppTheme.priorityHigh : p == 'low' ? AppTheme.priorityLow : AppTheme.priorityMedium;
-                  return Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(right: p != 'high' ? 8 : 0),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _priority = p),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isSelected ? color.withValues(alpha: 0.15) : Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: isSelected ? color : Colors.grey.shade300, width: isSelected ? 2 : 1),
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(p == 'high' ? Icons.keyboard_double_arrow_up_rounded : p == 'low' ? Icons.keyboard_double_arrow_down_rounded : Icons.remove_rounded, color: isSelected ? color : Colors.grey, size: 20),
-                              const SizedBox(height: 4),
-                              Text(p[0].toUpperCase() + p.substring(1), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isSelected ? color : Colors.grey)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _assignedTo,
-                decoration: const InputDecoration(labelText: 'Assign To', prefixIcon: Icon(Icons.person_outline_rounded)),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('Unassigned')),
-                  ...family.members.map((m) => DropdownMenuItem(value: m.userId, child: Text(m.user?.displayName ?? m.userId))),
-                ],
-                onChanged: (v) => setState(() => _assignedTo = v),
-              ),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: _pickDate,
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'Due Date',
-                    prefixIcon: const Icon(Icons.calendar_today_rounded),
-                    suffixIcon: _dueDate != null ? IconButton(icon: const Icon(Icons.clear_rounded), onPressed: () => setState(() => _dueDate = null)) : null,
-                  ),
-                  child: Text(
-                    _dueDate != null ? '${_dueDate!.year}-${_dueDate!.month.toString().padLeft(2, '0')}-${_dueDate!.day.toString().padLeft(2, '0')}' : 'No due date',
-                    style: TextStyle(color: _dueDate != null ? null : Colors.grey),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text('Repeat', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: [
-                  ChoiceChip(label: const Text('None'), selected: _recurrence == null, onSelected: (_) => setState(() => _recurrence = null)),
-                  ..._recurrences.map((r) => ChoiceChip(
-                        label: Text(r[0].toUpperCase() + r.substring(1)),
-                        selected: _recurrence == r,
-                        onSelected: (_) => setState(() => _recurrence = r),
-                      )),
-                ],
-              ),
-              const SizedBox(height: 32),
-              FilledButton(onPressed: _submit, child: const Text('Save Changes')),
-            ],
+          child: ChoreFormFields(
+            controller: _formController,
+            members: family.members,
+            onSubmit: _submit,
+            isLoading: false,
+            submitLabel: 'Save Changes',
           ),
         ),
       ),

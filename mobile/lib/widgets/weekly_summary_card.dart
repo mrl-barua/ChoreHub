@@ -55,7 +55,7 @@ class WeeklySummaryCard extends StatelessWidget {
             children: [
               Text('$thisWeek', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
               const SizedBox(width: 6),
-              Text('chore${thisWeek != 1 ? 's' : ''} completed', style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+              Text('chore${thisWeek != 1 ? 's' : ''} completed', style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
             ],
           ),
           if (topContributor != null || topCategory != null) ...[
@@ -67,9 +67,9 @@ class WeeklySummaryCard extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.emoji_events_rounded, size: 14, color: Color(0xFFFFD700)),
+                      const Icon(Icons.emoji_events_rounded, size: 14, color: AppTheme.accentGold),
                       const SizedBox(width: 4),
-                      Text(topContributor['displayName'] as String? ?? '', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+                      Text(topContributor['displayName'] as String? ?? '', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                     ],
                   ),
                 if (topCategory != null)
@@ -78,7 +78,7 @@ class WeeklySummaryCard extends StatelessWidget {
                     children: [
                       Icon(Icons.category_rounded, size: 14, color: AppTheme.categoryColors[topCategory] ?? Colors.grey),
                       const SizedBox(width: 4),
-                      Text(topCategory, style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+                      Text(topCategory, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                     ],
                   ),
               ],

@@ -19,6 +19,7 @@ class MessageState {
   final String? searchQuery;
   final bool isSearching;
   final String? error;
+  final Set<String> softDeletedIds;
 
   MessageState({
     this.messages = const [],
@@ -29,7 +30,11 @@ class MessageState {
     this.searchQuery,
     this.isSearching = false,
     this.error,
+    this.softDeletedIds = const <String>{},
   });
+
+  List<Message> get visibleMessages =>
+      messages.where((m) => !softDeletedIds.contains(m.id)).toList();
 }
 
 class MessageNotifier extends Notifier<MessageState> {
@@ -42,6 +47,7 @@ class MessageNotifier extends Notifier<MessageState> {
   StreamSubscription<Map<String, dynamic>>? _readReceiptSub;
   StreamSubscription<String>? _deleteSub;
   Timer? _typingTimer;
+  final Map<String, Timer> _pendingMessageDeletes = {};
 
   @override
   MessageState build() {
@@ -54,6 +60,7 @@ class MessageNotifier extends Notifier<MessageState> {
       _readReceiptSub?.cancel();
       _deleteSub?.cancel();
       _typingTimer?.cancel();
+      _pendingMessageDeletes.forEach((_, t) => t.cancel());
     });
     return MessageState(isLoading: true);
   }
@@ -357,6 +364,36 @@ class MessageNotifier extends Notifier<MessageState> {
     _typingTimer = Timer(const Duration(seconds: 2), () {
       _socket.sendStopTyping(family.id);
     });
+  }
+
+  void softDeleteMessage(String messageId) {
+    state = MessageState(
+      messages: state.messages,
+      typingUserIds: state.typingUserIds,
+      hasMore: state.hasMore,
+      unreadCount: state.unreadCount,
+      softDeletedIds: {...state.softDeletedIds, messageId},
+    );
+
+    final family = ref.read(familyProvider).currentFamily;
+    if (family == null) return;
+
+    _pendingMessageDeletes[messageId] = Timer(const Duration(seconds: 4), () {
+      _pendingMessageDeletes.remove(messageId);
+      _socket.deleteMessage(messageId: messageId, familyId: family.id);
+    });
+  }
+
+  void cancelSoftDeleteMessage(String messageId) {
+    _pendingMessageDeletes[messageId]?.cancel();
+    _pendingMessageDeletes.remove(messageId);
+    state = MessageState(
+      messages: state.messages,
+      typingUserIds: state.typingUserIds,
+      hasMore: state.hasMore,
+      unreadCount: state.unreadCount,
+      softDeletedIds: state.softDeletedIds.difference({messageId}),
+    );
   }
 }
 

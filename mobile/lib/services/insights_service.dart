@@ -20,9 +20,10 @@ class InsightsService {
     int dayOfWeek,
     int hour,
   ) async {
+    final tzOffsetMinutes = DateTime.now().timeZoneOffset.inMinutes;
     await _apiClient.dio.patch(
       '/families/$familyId/chores/$choreId/reschedule',
-      data: {'dayOfWeek': dayOfWeek, 'hour': hour},
+      data: {'dayOfWeek': dayOfWeek, 'hour': hour, 'tzOffsetMinutes': tzOffsetMinutes},
     );
   }
 }

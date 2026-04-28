@@ -7,9 +7,11 @@ import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
 import '../../services/api_client.dart';
 import '../../services/family_service.dart';
+import '../../services/feedback_service.dart';
 import '../../widgets/animated_list_item.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/pressable.dart';
+import '../../widgets/skeleton_loader.dart';
 
 class FamilyScreen extends ConsumerStatefulWidget {
   const FamilyScreen({super.key});
@@ -58,7 +60,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     } catch (e) {
       debugPrint('Failed to leave family: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to leave family')));
+        AppFeedback.error(context, 'Failed to leave family');
       }
     }
   }
@@ -88,12 +90,12 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
       await ref.read(familyProvider.notifier).refreshWithSync();
       await ref.read(familyProvider.notifier).loadMemberStats();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$displayName removed')));
+        AppFeedback.success(context, '$displayName removed');
       }
     } catch (e) {
       debugPrint('Failed to remove member: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to remove member')));
+        AppFeedback.error(context, 'Failed to remove member');
       }
     }
   }
@@ -288,6 +290,11 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
               child: const Text('Members', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             ),
             const SizedBox(height: 12),
+            if (family.isLoading && family.members.isEmpty) ...[
+              const SkeletonStats(),
+              const SizedBox(height: 12),
+              const SkeletonMemberList(count: 3),
+            ],
             ...family.members.asMap().entries.map((entry) {
               final member = entry.value;
               final isCurrentUser = member.userId == currentUser?.id;
@@ -323,7 +330,9 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                               ),
                               child: Center(
                                 child: Text(
-                                  (member.user?.displayName ?? '?')[0].toUpperCase(),
+                                  (member.user?.displayName ?? '').isNotEmpty
+                                      ? member.user!.displayName[0].toUpperCase()
+                                      : '?',
                                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: avatarColor),
                                 ),
                               ),
@@ -345,13 +354,13 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                                       if (isCurrentUser)
                                         Padding(
                                           padding: const EdgeInsets.only(left: 6),
-                                          child: Text('(You)', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                                          child: const Text('(You)', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                                         ),
                                     ],
                                   ),
                                   const SizedBox(height: 2),
                                   Text('@${member.user?.username ?? ''}',
-                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                                      style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                                 ],
                               ),
                             ),
@@ -371,7 +380,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                                 if (currentUserIsAdmin && !isCurrentUser) ...[
                                   const SizedBox(width: 4),
                                   IconButton(
-                                    icon: Icon(Icons.remove_circle_outline_rounded, size: 20, color: Colors.grey.shade400),
+                                    icon: const Icon(Icons.remove_circle_outline_rounded, size: 20, color: AppTheme.textSecondary),
                                     onPressed: () => _removeMember(member.userId, member.user?.displayName ?? 'this member'),
                                     tooltip: 'Remove member',
                                     visualDensity: VisualDensity.compact,
@@ -399,9 +408,9 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                             if (completedCount > 0)
                               Row(
                                 children: [
-                                  const Icon(Icons.local_fire_department_rounded, size: 16, color: Color(0xFFFF9100)),
+                                  const Icon(Icons.local_fire_department_rounded, size: 16, color: AppTheme.accentOrange),
                                   const SizedBox(width: 2),
-                                  Text('$completedCount', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFFF9100))),
+                                  Text('$completedCount', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.accentOrange)),
                                 ],
                               ),
                           ],

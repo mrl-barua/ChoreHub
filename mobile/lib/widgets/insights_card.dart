@@ -10,7 +10,7 @@ class InsightsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Cold-start: not enough data collected yet
-    if (data.familySampleSize == 0) {
+    if (data.familySampleSize < 20) {
       return Container(
         key: const Key('insights_cold_start'),
         padding: const EdgeInsets.all(16),
@@ -212,7 +212,7 @@ class InsightsCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Score: ${data.fairnessScore!.toInt()}',
+                    'Score: ${data.fairnessScore}',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,

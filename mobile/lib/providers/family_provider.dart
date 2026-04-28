@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/family.dart';
@@ -17,6 +18,7 @@ class FamilyState {
   final Map<String, int> memberCompletedCount;
   final int totalChores;
   final int completedChores;
+  final Set<String> softRemovedIds;
 
   FamilyState({
     this.families = const [],
@@ -28,14 +30,19 @@ class FamilyState {
     this.memberCompletedCount = const {},
     this.totalChores = 0,
     this.completedChores = 0,
+    this.softRemovedIds = const {},
   });
 
   bool get hasLoadError => error != null;
+
+  List<FamilyMember> get visibleMembers =>
+      members.where((m) => !softRemovedIds.contains(m.userId)).toList();
 }
 
 class FamilyNotifier extends Notifier<FamilyState> {
   final FamilyService _familyService = FamilyService(ApiClient());
   final ChoreService _choreService = ChoreService(ApiClient());
+  final Map<String, Timer> _pendingRemovals = {};
 
   @override
   FamilyState build() {
@@ -149,6 +156,58 @@ class FamilyNotifier extends Notifier<FamilyState> {
         completedChores: state.completedChores,
       );
     }
+  }
+
+  void softRemoveMember(String memberId) {
+    state = FamilyState(
+      families: state.families,
+      currentFamily: state.currentFamily,
+      members: state.members,
+      memberChoreCount: state.memberChoreCount,
+      memberCompletedCount: state.memberCompletedCount,
+      totalChores: state.totalChores,
+      completedChores: state.completedChores,
+      softRemovedIds: {...state.softRemovedIds, memberId},
+    );
+
+    final familyId = state.currentFamily?.id;
+    if (familyId == null) return;
+
+    _pendingRemovals[memberId] = Timer(const Duration(seconds: 4), () async {
+      _pendingRemovals.remove(memberId);
+      try {
+        await _familyService.removeMember(familyId, memberId);
+        await loadFamilies();
+      } catch (e) {
+        debugPrint('[Family] Soft remove failed: $e');
+        // Restore on failure
+        state = FamilyState(
+          families: state.families,
+          currentFamily: state.currentFamily,
+          members: state.members,
+          memberChoreCount: state.memberChoreCount,
+          memberCompletedCount: state.memberCompletedCount,
+          totalChores: state.totalChores,
+          completedChores: state.completedChores,
+          softRemovedIds: state.softRemovedIds.difference({memberId}),
+        );
+      }
+    });
+  }
+
+  void cancelSoftRemoveMember(String memberId) {
+    _pendingRemovals[memberId]?.cancel();
+    _pendingRemovals.remove(memberId);
+    state = FamilyState(
+      families: state.families,
+      currentFamily: state.currentFamily,
+      members: state.members,
+      memberChoreCount: state.memberChoreCount,
+      memberCompletedCount: state.memberCompletedCount,
+      totalChores: state.totalChores,
+      completedChores: state.completedChores,
+      softRemovedIds: state.softRemovedIds.difference({memberId}),
+    );
   }
 }
 

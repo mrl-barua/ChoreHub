@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../config/theme.dart';
 import '../../providers/family_provider.dart';
 import '../../services/api_client.dart';
 import '../../services/family_service.dart';
+import '../../services/feedback_service.dart';
 import '../../widgets/challenge_progress_card.dart';
+import '../../widgets/skeleton_loader.dart';
 
 class ChallengesScreen extends ConsumerStatefulWidget {
   const ChallengesScreen({super.key});
@@ -49,50 +52,89 @@ class _ChallengesScreenState extends ConsumerState<ChallengesScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(left: 24, right: 24, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('New Challenge', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
-            TextField(controller: titleController, decoration: const InputDecoration(hintText: 'Challenge title')),
-            const SizedBox(height: 12),
-            TextField(controller: targetController, decoration: const InputDecoration(hintText: 'Target chore count'), keyboardType: TextInputType.number),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () async {
-                  final family = ref.read(familyProvider).currentFamily;
-                  if (family == null) return;
-                  Navigator.pop(ctx);
-                  try {
-                    await _familyService.createChallenge(
-                      family.id,
-                      title: titleController.text.trim(),
-                      targetCount: int.tryParse(targetController.text) ?? 20,
-                      startDate: DateTime.now().toIso8601String(),
-                      endDate: DateTime.now().add(const Duration(days: 7)).toIso8601String(),
-                    );
-                    _loadChallenges();
-                  } catch (e) {
-                    debugPrint('Failed to create challenge: $e');
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Failed to create challenge')),
-                      );
-                    }
-                  }
-                },
-                child: const Text('Create Challenge'),
-              ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusL))),
+      builder: (ctx) {
+        String? titleError;
+        String? targetError;
+
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+          void validateAndSubmit() async {
+            final newTitleError = titleController.text.trim().isEmpty ? 'Title is required' : null;
+            final target = int.tryParse(targetController.text);
+            final newTargetError = (target == null || target <= 0) ? 'Enter a number greater than 0' : null;
+
+            setSheetState(() {
+              titleError = newTitleError;
+              targetError = newTargetError;
+            });
+
+            if (newTitleError != null || newTargetError != null) return;
+
+            final family = ref.read(familyProvider).currentFamily;
+            if (family == null) return;
+            Navigator.pop(ctx);
+            try {
+              await _familyService.createChallenge(
+                family.id,
+                title: titleController.text.trim(),
+                targetCount: target!,
+                startDate: DateTime.now().toIso8601String(),
+                endDate: DateTime.now().add(const Duration(days: 7)).toIso8601String(),
+              );
+              _loadChallenges();
+            } catch (e) {
+              debugPrint('Failed to create challenge: $e');
+              if (mounted) {
+                AppFeedback.error(context, 'Failed to create challenge');
+              }
+            }
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(left: 24, right: 24, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('New Challenge', style: TextStyle(fontSize: AppTheme.fontXL, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    hintText: 'Challenge title',
+                    errorText: titleError,
+                  ),
+                  onChanged: (_) {
+                    if (titleError != null) setSheetState(() => titleError = null);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: targetController,
+                  decoration: InputDecoration(
+                    hintText: 'Target chore count',
+                    errorText: targetError,
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) {
+                    if (targetError != null) setSheetState(() => targetError = null);
+                  },
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: validateAndSubmit,
+                    child: const Text('Create Challenge'),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          );
+        },
+        );
+      },
     );
   }
 
@@ -101,7 +143,15 @@ class _ChallengesScreenState extends ConsumerState<ChallengesScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Family Challenges')),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SingleChildScrollView(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  SkeletonChallengeCard(),
+                  SkeletonChallengeCard(),
+                ],
+              ),
+            )
           : RefreshIndicator(
               onRefresh: _loadChallenges,
               child: _challenges.isEmpty
@@ -109,9 +159,9 @@ class _ChallengesScreenState extends ConsumerState<ChallengesScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.emoji_events_rounded, size: 64, color: Colors.grey.shade700),
+                          const Icon(Icons.emoji_events_rounded, size: 64, color: AppTheme.surfaceHigh),
                           const SizedBox(height: 12),
-                          Text('No challenges yet', style: TextStyle(color: Colors.grey.shade500)),
+                          const Text('No challenges yet', style: TextStyle(color: AppTheme.textSecondary)),
                           const SizedBox(height: 16),
                           FilledButton.icon(
                             onPressed: _showCreateDialog,

@@ -22,7 +22,7 @@ class DashboardStats extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [colorScheme.surface, colorScheme.surface],
+          colors: [colorScheme.surface, AppTheme.surfaceLow],
         ),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppTheme.borderSubtle(context)),
@@ -44,10 +44,23 @@ class DashboardStats extends StatelessWidget {
                 _StatRow(icon: Icons.check_circle_rounded, label: '$done done', color: AppTheme.accentGreen),
                 const SizedBox(height: 8),
                 _StatRow(icon: Icons.pending_rounded, label: '$pending left', color: AppTheme.accentOrange),
-                if (overdue > 0) ...[
-                  const SizedBox(height: 8),
-                  _StatRow(icon: Icons.warning_rounded, label: '$overdue overdue', color: AppTheme.accentRed),
-                ],
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 250),
+                    opacity: overdue > 0 ? 1.0 : 0.0,
+                    child: overdue > 0
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 8),
+                              _StatRow(icon: Icons.warning_rounded, label: '$overdue overdue', color: AppTheme.accentRed),
+                            ],
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ),
               ],
             ),
           ),
@@ -73,7 +86,7 @@ class DashboardStats extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text('$done', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: colorScheme.onSurface)),
-                  Text('of $total', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                  Text('of $total', style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
                 ],
               ),
             ),
@@ -105,7 +118,7 @@ class _StatRow extends StatelessWidget {
         const SizedBox(width: 10),
         Icon(icon, size: 16, color: color),
         const SizedBox(width: 6),
-        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade400)),
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
       ],
     );
   }

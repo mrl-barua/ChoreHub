@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../config/api_config.dart';
 import '../config/theme.dart';
 import '../models/message.dart';
+import '../services/feedback_service.dart';
 import '../utils/category_helpers.dart';
 import 'link_preview.dart';
 import 'reaction_picker.dart';
@@ -72,9 +73,7 @@ class MessageBubble extends StatelessWidget {
       } else if (value == 'copy') {
         Clipboard.setData(ClipboardData(text: message.text));
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Message copied'), duration: Duration(seconds: 1)),
-          );
+          AppFeedback.info(context, 'Message copied');
         }
       } else if (value == 'react') {
         if (context.mounted) _showReactionPicker(context);

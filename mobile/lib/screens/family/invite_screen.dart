@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/family_provider.dart';
 import '../../providers/invitation_provider.dart';
 import '../../providers/connectivity_provider.dart';
+import '../../services/feedback_service.dart';
 
 class InviteScreen extends ConsumerStatefulWidget {
   const InviteScreen({super.key});
@@ -97,9 +98,7 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
                               user.id,
                             );
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Invitation sent to ${user.displayName}')),
-                          );
+                          AppFeedback.success(context, 'Invitation sent to ${user.displayName}');
                         }
                       },
                       child: const Text('Invite'),

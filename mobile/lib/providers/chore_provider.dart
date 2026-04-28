@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/chore.dart';
@@ -16,6 +17,7 @@ class ChoreState {
   final Map<String, int> stats;
   final bool isLoading;
   final String? error;
+  final Set<String> softDeletedIds;
 
   ChoreState({
     this.allChores = const [],
@@ -26,10 +28,11 @@ class ChoreState {
     this.stats = const {'total': 0, 'done': 0, 'pending': 0, 'overdue': 0},
     this.isLoading = false,
     this.error,
+    this.softDeletedIds = const {},
   });
 
   List<Chore> get filteredChores {
-    var list = chores;
+    var list = chores.where((c) => !softDeletedIds.contains(c.id)).toList();
     if (searchQuery.isNotEmpty) {
       final q = searchQuery.toLowerCase();
       list = list.where((c) => c.title.toLowerCase().contains(q) || c.category.toLowerCase().contains(q)).toList();
@@ -40,6 +43,7 @@ class ChoreState {
 
 class ChoreNotifier extends Notifier<ChoreState> {
   final ChoreService _choreService = ChoreService(ApiClient());
+  final Map<String, Timer> _pendingDeletes = {};
 
   @override
   ChoreState build() {
@@ -87,7 +91,7 @@ class ChoreNotifier extends Notifier<ChoreState> {
 
       final sorted = _sortChores(filtered, state.sort);
       debugPrint('[Chores] Loaded ${allChores.length} total, ${sorted.length} filtered');
-      state = ChoreState(allChores: allChores, chores: sorted, filter: state.filter, sort: state.sort, searchQuery: state.searchQuery, stats: stats);
+      state = ChoreState(allChores: allChores, chores: sorted, filter: state.filter, sort: state.sort, searchQuery: state.searchQuery, stats: stats, softDeletedIds: state.softDeletedIds);
     } catch (e) {
       debugPrint('[Chores] Load failed: $e');
       state = ChoreState(error: 'Failed to load chores');
@@ -204,6 +208,52 @@ class ChoreNotifier extends Notifier<ChoreState> {
 
   Future<void> refresh() async {
     await loadChores();
+  }
+
+  void softDelete(String choreId) {
+    state = ChoreState(
+      allChores: state.allChores,
+      chores: state.chores,
+      filter: state.filter,
+      sort: state.sort,
+      searchQuery: state.searchQuery,
+      stats: state.stats,
+      softDeletedIds: {...state.softDeletedIds, choreId},
+    );
+
+    _pendingDeletes[choreId] = Timer(const Duration(seconds: 4), () async {
+      _pendingDeletes.remove(choreId);
+      try {
+        await _choreService.deleteChore(choreId);
+        await loadChores();
+      } catch (e) {
+        debugPrint('[Chores] Soft delete API call failed: $e');
+        // Restore visibility on failure
+        state = ChoreState(
+          allChores: state.allChores,
+          chores: state.chores,
+          filter: state.filter,
+          sort: state.sort,
+          searchQuery: state.searchQuery,
+          stats: state.stats,
+          softDeletedIds: state.softDeletedIds.difference({choreId}),
+        );
+      }
+    });
+  }
+
+  void cancelSoftDelete(String choreId) {
+    _pendingDeletes[choreId]?.cancel();
+    _pendingDeletes.remove(choreId);
+    state = ChoreState(
+      allChores: state.allChores,
+      chores: state.chores,
+      filter: state.filter,
+      sort: state.sort,
+      searchQuery: state.searchQuery,
+      stats: state.stats,
+      softDeletedIds: state.softDeletedIds.difference({choreId}),
+    );
   }
 }
 

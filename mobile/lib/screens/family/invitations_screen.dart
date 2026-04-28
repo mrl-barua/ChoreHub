@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/invitation_provider.dart';
 import '../../providers/family_provider.dart';
+import '../../services/feedback_service.dart';
 
 class InvitationsScreen extends ConsumerWidget {
   const InvitationsScreen({super.key});
@@ -70,9 +71,7 @@ class InvitationsScreen extends ConsumerWidget {
                                         await ref.read(familyProvider.notifier).loadFamilies();
                                         await ref.read(choreProvider.notifier).loadChores();
                                         if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('You joined the family!')),
-                                          );
+                                          AppFeedback.success(context, 'You joined the family!');
                                           context.go('/dashboard');
                                         }
                                       }

@@ -1,3 +1,13 @@
+import 'package:flutter/material.dart';
+import '../config/theme.dart';
+
+const Map<String, Color> choreStatusColors = {
+  'awaiting': AppTheme.accentOrange,
+  'declined': AppTheme.accentRed,
+  'done': AppTheme.accentGreen,
+  'pending': AppTheme.textSecondary,
+};
+
 class ChoreStatus {
   static const pending = 'pending';
   static const done = 'done';

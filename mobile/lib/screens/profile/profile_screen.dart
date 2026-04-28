@@ -7,9 +7,11 @@ import '../../providers/connectivity_provider.dart';
 import '../../providers/theme_provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../services/api_client.dart';
+import '../../services/feedback_service.dart';
 import '../../services/user_service.dart';
 import '../../widgets/animated_list_item.dart';
 import '../../widgets/polished_bottom_sheet.dart';
+import '../../widgets/skeleton_loader.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -22,6 +24,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final UserService _userService = UserService(ApiClient());
 
   Map<String, dynamic>? _stats;
+  bool _statsLoading = false;
+  String? _statsError;
   bool _choreReminders = true;
   bool _chatMentions = true;
   bool _assignmentAlerts = true;
@@ -48,11 +52,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _loadStats() async {
+    if (mounted) setState(() { _statsLoading = true; _statsError = null; });
     try {
       final stats = await _userService.loadMyStats();
-      if (mounted) setState(() => _stats = stats);
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+          _statsLoading = false;
+        });
+      }
     } catch (e) {
       debugPrint('Failed to load user stats: $e');
+      if (mounted) {
+        setState(() {
+          _statsLoading = false;
+          _statsError = e.toString();
+        });
+      }
     }
   }
 
@@ -86,16 +102,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     if (ctx.mounted) Navigator.pop(ctx);
                     ref.invalidate(authProvider);
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Profile updated')),
-                      );
+                      AppFeedback.success(context, 'Profile updated');
                     }
                   } catch (e) {
                     debugPrint('Failed to update profile: $e');
                     if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(content: Text('Failed to update')),
-                      );
+                      AppFeedback.error(ctx, 'Failed to update');
                     }
                   }
                 },
@@ -113,55 +125,65 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final newController = TextEditingController();
     final confirmController = TextEditingController();
 
+    bool isChangingPassword = false;
+
     showPolishedBottomSheet(
       context: context,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(left: 24, right: 24, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Change Password', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
-            TextField(controller: currentController, obscureText: true, decoration: const InputDecoration(hintText: 'Current password')),
-            const SizedBox(height: 12),
-            TextField(controller: newController, obscureText: true, decoration: const InputDecoration(hintText: 'New password (min 6 chars)')),
-            const SizedBox(height: 12),
-            TextField(controller: confirmController, obscureText: true, decoration: const InputDecoration(hintText: 'Confirm new password')),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () async {
-                  if (newController.text != confirmController.text) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
-                    return;
-                  }
-                  if (newController.text.length < 6) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Password must be at least 6 characters')));
-                    return;
-                  }
-                  try {
-                    await _userService.changePassword(
-                      currentPassword: currentController.text,
-                      newPassword: newController.text,
-                    );
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password changed successfully')));
-                    }
-                  } catch (e) {
-                    debugPrint('Failed to change password: $e');
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Failed — check current password')));
-                    }
-                  }
-                },
-                child: const Text('Change Password'),
-              ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(left: 24, right: 24, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Change Password', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 16),
+                TextField(controller: currentController, obscureText: true, decoration: const InputDecoration(hintText: 'Current password')),
+                const SizedBox(height: 12),
+                TextField(controller: newController, obscureText: true, decoration: const InputDecoration(hintText: 'New password (min 6 chars)')),
+                const SizedBox(height: 12),
+                TextField(controller: confirmController, obscureText: true, decoration: const InputDecoration(hintText: 'Confirm new password')),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: isChangingPassword ? null : () async {
+                      if (newController.text != confirmController.text) {
+                        AppFeedback.error(ctx, 'Passwords do not match');
+                        return;
+                      }
+                      if (newController.text.length < 6) {
+                        AppFeedback.error(ctx, 'Password must be at least 6 characters');
+                        return;
+                      }
+                      setSheetState(() => isChangingPassword = true);
+                      try {
+                        await _userService.changePassword(
+                          currentPassword: currentController.text,
+                          newPassword: newController.text,
+                        );
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          AppFeedback.success(context, 'Password changed successfully');
+                        }
+                      } catch (e) {
+                        debugPrint('Failed to change password: $e');
+                        if (ctx.mounted) {
+                          setSheetState(() => isChangingPassword = false);
+                          AppFeedback.error(ctx, 'Failed — check current password');
+                        }
+                      }
+                    },
+                    child: isChangingPassword
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Change Password'),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -203,7 +225,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
                       child: Center(
                         child: Text(
-                          (user?.displayName ?? '?')[0].toUpperCase(),
+                          (user?.displayName ?? '').isNotEmpty ? user!.displayName[0].toUpperCase() : '?',
                           style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white),
                         ),
                       ),
@@ -229,7 +251,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 16),
 
-            if (_stats != null)
+            if (_statsLoading)
+              AnimatedListItem(
+                index: 1,
+                child: const SkeletonStats(),
+              )
+            else if (_statsError != null)
+              AnimatedListItem(
+                index: 1,
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: AppTheme.accentOrange, size: 16),
+                    const SizedBox(width: 6),
+                    const Expanded(child: Text('Failed to load stats', style: TextStyle(color: AppTheme.textSecondary, fontSize: AppTheme.fontS))),
+                    TextButton(onPressed: _loadStats, child: const Text('Retry')),
+                  ],
+                ),
+              )
+            else if (_stats != null)
               AnimatedListItem(
                 index: 1,
                 child: Container(
@@ -256,11 +295,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            Icon(Icons.star_rounded, size: 16, color: AppTheme.accentOrange),
+                            const Icon(Icons.star_rounded, size: 16, color: AppTheme.accentOrange),
                             const SizedBox(width: 6),
                             Text(
                               'Top category: ${_stats!['topCategory']} (${_stats!['topCategoryCount']})',
-                              style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                              style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
                             ),
                           ],
                         ),
@@ -296,7 +335,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const Divider(height: 1, indent: 56),
                     ListTile(
                       leading: Icon(isOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
-                          color: isOnline ? Colors.green : Colors.orange),
+                          color: isOnline ? AppTheme.accentGreen : AppTheme.accentOrange),
                       title: const Text('Status'),
                       subtitle: Text(isOnline ? 'Online' : 'Offline'),
                     ),
@@ -355,7 +394,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 12),
 
             AnimatedListItem(
-              index: 3,
+              index: 4,
               child: Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,14 +418,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 12),
 
             AnimatedListItem(
-              index: 4,
+              index: 5,
               child: Card(
                 child: Column(
                   children: [
                     ListTile(
                       leading: const Icon(Icons.info_outline_rounded),
                       title: const Text('App Version'),
-                      trailing: Text('1.0.0', style: TextStyle(color: Colors.grey.shade500)),
+                      trailing: const Text('1.0.0', style: TextStyle(color: AppTheme.textSecondary)),
                     ),
                   ],
                 ),
@@ -395,7 +434,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 32),
 
             AnimatedListItem(
-              index: 5,
+              index: 6,
               child: OutlinedButton.icon(
                 onPressed: () async {
                   final confirm = await showDialog<bool>(
@@ -416,7 +455,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 },
                 icon: const Icon(Icons.logout_rounded),
                 label: const Text('Logout'),
-                style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
+                style: OutlinedButton.styleFrom(foregroundColor: AppTheme.accentRed, side: const BorderSide(color: AppTheme.accentRed)),
               ),
             ),
           ],
@@ -457,7 +496,7 @@ class _StatChip extends StatelessWidget {
             const SizedBox(height: 8),
             Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color)),
             const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+            Text(label, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
           ],
         ),
       ),

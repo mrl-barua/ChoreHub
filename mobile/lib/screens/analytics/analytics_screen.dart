@@ -8,6 +8,8 @@ import '../../widgets/charts/category_pie_chart.dart';
 import '../../widgets/charts/member_chart.dart';
 import '../../widgets/charts/completion_trend_chart.dart';
 import '../../widgets/leaderboard.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/skeleton_loader.dart';
 
 class AnalyticsScreen extends ConsumerWidget {
   const AnalyticsScreen({super.key});
@@ -27,8 +29,24 @@ class AnalyticsScreen extends ConsumerWidget {
         ],
       ),
       body: analytics.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
+          ? SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              child: Column(
+                children: [
+                  SkeletonChartCard(height: 220),
+                  SkeletonChartCard(height: 220),
+                  SkeletonChartCard(height: 220),
+                  SkeletonChartCard(height: 220),
+                ],
+              ),
+            )
+          : analytics.totalCompleted == 0 && analytics.weeklyCompletions.every((d) => d.completed == 0)
+              ? const EmptyState(
+                  icon: Icons.bar_chart_rounded,
+                  title: 'No data yet',
+                  subtitle: 'Complete some chores to see analytics',
+                )
+              : RefreshIndicator(
               onRefresh: () => ref.read(analyticsProvider.notifier).loadAnalytics(),
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -52,7 +70,7 @@ class AnalyticsScreen extends ConsumerWidget {
                             icon: Icons.local_fire_department_rounded,
                             label: 'Day Streak',
                             value: '${analytics.currentStreak}',
-                            color: const Color(0xFFFF9100),
+                            color: AppTheme.accentOrange,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -110,7 +128,7 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color)),
             const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+            Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
           ],
         ),
       ),

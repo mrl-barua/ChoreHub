@@ -9,9 +9,11 @@ import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
 import '../../services/api_client.dart';
 import '../../services/chore_service.dart';
+import '../../services/feedback_service.dart';
 import '../../utils/category_helpers.dart';
 import '../../utils/date_helpers.dart';
 import '../../widgets/polished_bottom_sheet.dart';
+import '../../widgets/skeleton_loader.dart';
 
 class ChoreDetailScreen extends ConsumerStatefulWidget {
   final String choreId;
@@ -61,9 +63,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
     } catch (e) {
       debugPrint('Failed to post comment: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to post comment')),
-        );
+        AppFeedback.error(context, 'Failed to post comment');
       }
     }
   }
@@ -90,7 +90,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
           children: [
             const Row(
               children: [
-                Icon(Icons.celebration_rounded, color: Color(0xFFFF9100), size: 24),
+                Icon(Icons.celebration_rounded, color: AppTheme.accentOrange, size: 24),
                 SizedBox(width: 10),
                 Text('Complete Chore', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               ],
@@ -123,7 +123,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                     }
                   } catch (_) {
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to complete')));
+                      AppFeedback.error(context, 'Failed to complete');
                     }
                   }
                 },
@@ -173,9 +173,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                   } catch (e) {
                     debugPrint('Failed to reassign chore: $e');
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Failed to reassign chore')),
-                      );
+                      AppFeedback.error(context, 'Failed to reassign chore');
                     }
                   }
                 },
@@ -206,7 +204,18 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
     final chore = choreList.where((c) => c.id == widget.choreId).firstOrNull;
 
     if (choreState.isLoading && chore == null) {
-      return Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        appBar: AppBar(),
+        body: const SingleChildScrollView(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            children: [
+              SkeletonCard(height: 180),
+              SkeletonLoader(itemCount: 3),
+            ],
+          ),
+        ),
+      );
     }
     if (chore == null) {
       return Scaffold(appBar: AppBar(), body: const Center(child: Text('Chore not found')));
@@ -294,7 +303,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.notes_rounded, size: 20, color: Colors.grey.shade500),
+                        const Icon(Icons.notes_rounded, size: 20, color: AppTheme.textSecondary),
                         const SizedBox(width: 12),
                         Expanded(child: Text(chore.description!, style: const TextStyle(fontSize: 15, height: 1.5))),
                       ],
@@ -306,13 +315,13 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
               if (isAssignee && chore.isPendingAcceptance) ...[
                 const SizedBox(height: 20),
                 Card(
-                  color: Colors.orange.withValues(alpha: 0.08),
+                  color: AppTheme.accentOrange.withValues(alpha: 0.08),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
                         Row(children: [
-                          const Icon(Icons.assignment_ind_rounded, color: Colors.orange, size: 22),
+                          const Icon(Icons.assignment_ind_rounded, color: AppTheme.accentOrange, size: 22),
                           const SizedBox(width: 8),
                           const Expanded(child: Text('You have been assigned this chore', style: TextStyle(fontWeight: FontWeight.w600))),
                         ]),
@@ -320,7 +329,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                         Row(children: [
                           Expanded(child: OutlinedButton(
                             onPressed: () async { await ref.read(choreProvider.notifier).respondToAssignment(chore.id, 'declined'); _loadHistory(); },
-                            style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                            style: OutlinedButton.styleFrom(foregroundColor: AppTheme.accentRed),
                             child: const Text('Decline'),
                           )),
                           const SizedBox(width: 12),
@@ -400,10 +409,10 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                                 if (note != null)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4),
-                                    child: Text('"$note"', style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey.shade500)),
+                                    child: Text('"$note"', style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: AppTheme.textSecondary)),
                                   ),
                                 const SizedBox(height: 2),
-                                Text(DateHelpers.timeAgo(h.createdAt), style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                                Text(DateHelpers.timeAgo(h.createdAt), style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
                               ],
                             ),
                           ),
@@ -438,7 +447,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
               const Text('Comments', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
               if (_comments.isEmpty)
-                Text('No comments yet', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                const Text('No comments yet', style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
               ..._comments.map((c) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
@@ -456,7 +465,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                         Row(children: [
                           Text(c.userName ?? 'Unknown', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                           const SizedBox(width: 8),
-                          Text(DateHelpers.timeAgo(c.createdAt), style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                          Text(DateHelpers.timeAgo(c.createdAt), style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
                         ]),
                         const SizedBox(height: 2),
                         Text(c.text, style: const TextStyle(fontSize: 13)),
@@ -501,7 +510,7 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                       opacity: value > 0.7 ? (1 - value) * 3.33 : 1,
                       child: Transform.scale(
                         scale: 0.5 + value * 0.5,
-                        child: const Icon(Icons.celebration_rounded, size: 120, color: Color(0xFFFF9100)),
+                        child: const Icon(Icons.celebration_rounded, size: 120, color: AppTheme.accentOrange),
                       ),
                     ),
                   ),
@@ -547,8 +556,8 @@ class _DetailTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       dense: true,
-      leading: Icon(icon, size: 20, color: iconColor ?? Colors.grey.shade500),
-      title: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+      leading: Icon(icon, size: 20, color: iconColor ?? AppTheme.textSecondary),
+      title: Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
       trailing: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
     );
   }

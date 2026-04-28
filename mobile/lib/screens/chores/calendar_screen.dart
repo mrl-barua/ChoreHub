@@ -65,6 +65,28 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Tooltip(
+                  message: 'Previous week',
+                  child: IconButton(
+                    icon: const Icon(Icons.keyboard_double_arrow_left_rounded, size: 20),
+                    onPressed: () => setState(() => _focusedDay = _focusedDay.subtract(const Duration(days: 7))),
+                  ),
+                ),
+                Tooltip(
+                  message: 'Next week',
+                  child: IconButton(
+                    icon: const Icon(Icons.keyboard_double_arrow_right_rounded, size: 20),
+                    onPressed: () => setState(() => _focusedDay = _focusedDay.add(const Duration(days: 7))),
+                  ),
+                ),
+              ],
+            ),
+          ),
           TableCalendar<Chore>(
             firstDay: DateTime.utc(2024, 1, 1),
             lastDay: DateTime.utc(2027, 12, 31),
@@ -106,9 +128,52 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               leftChevronIcon: Icon(Icons.chevron_left_rounded, color: Colors.white),
               rightChevronIcon: Icon(Icons.chevron_right_rounded, color: Colors.white),
             ),
-            daysOfWeekStyle: DaysOfWeekStyle(
-              weekdayStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade500),
-              weekendStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+            daysOfWeekStyle: const DaysOfWeekStyle(
+              weekdayStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+              weekendStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+            ),
+            calendarBuilders: CalendarBuilders(
+              markerBuilder: (context, day, events) {
+                if (events.isEmpty) return null;
+                final displayCount = events.length > 3 ? 3 : events.length;
+                final overflow = events.length - displayCount;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ...List.generate(displayCount, (_) => Container(
+                        width: 5,
+                        height: 5,
+                        margin: const EdgeInsets.only(right: 1),
+                        decoration: const BoxDecoration(
+                          color: AppTheme.accentOrange,
+                          shape: BoxShape.circle,
+                        ),
+                      )),
+                      if (overflow > 0) ...[
+                        const SizedBox(width: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accentOrange.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(AppTheme.radiusS),
+                          ),
+                          child: Text(
+                            '+$overflow',
+                            style: const TextStyle(
+                              fontSize: 7,
+                              color: AppTheme.accentOrange,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(height: 8),
@@ -120,7 +185,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 children: [
                   Text(
                     '${selectedChores.length} chore${selectedChores.length > 1 ? 's' : ''}',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade400),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -137,16 +202,18 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.event_available_rounded, size: 48, color: Colors.grey.shade700),
+                        const Icon(Icons.event_available_rounded, size: 48, color: AppTheme.surfaceHigh),
                         const SizedBox(height: 8),
-                        Text(
+                        const Text(
                           'No chores on this day',
-                          style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                          style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                         ),
                       ],
                     ),
                   )
-                : ListView.builder(
+                : RefreshIndicator(
+                    onRefresh: () => ref.read(choreProvider.notifier).refresh(),
+                    child: ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: selectedChores.length,
                     itemBuilder: (context, index) {
@@ -196,13 +263,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                     Row(
                                       children: [
                                         if (assignee != null)
-                                          Text(assignee.user?.displayName ?? '', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                                          Text(assignee.user?.displayName ?? '', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
                                         if (assignee != null && hasDueDate)
-                                          Text('  ·  ', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                                          const Text('  ·  ', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
                                         if (hasDueDate)
-                                          Text('Due', style: TextStyle(fontSize: 11, color: AppTheme.accentOrange, fontWeight: FontWeight.w600))
+                                          const Text('Due', style: TextStyle(fontSize: 11, color: AppTheme.accentOrange, fontWeight: FontWeight.w600))
                                         else
-                                          Text('Created', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                                          const Text('Created', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
                                       ],
                                     ),
                                   ],
@@ -220,6 +287,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         ),
                       );
                     },
+                  ),
                   ),
           ),
         ],

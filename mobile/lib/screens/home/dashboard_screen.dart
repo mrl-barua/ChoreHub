@@ -10,6 +10,7 @@ import '../../models/chore.dart';
 import '../../services/api_client.dart';
 import '../../services/chore_service.dart';
 import '../../services/family_service.dart';
+import '../../services/feedback_service.dart';
 import '../../widgets/animated_list_item.dart';
 import '../../widgets/chore_card.dart';
 import '../../widgets/dashboard_stats.dart';
@@ -21,6 +22,7 @@ import '../../widgets/suggestions_card.dart';
 import '../../models/insights.dart';
 import '../../services/insights_service.dart';
 import '../../widgets/insights_card.dart';
+import '../../widgets/skeleton_loader.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -43,6 +45,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _streak = 0;
   Map<String, dynamic>? _weeklySummary;
   List<dynamic> _suggestions = [];
+  bool _isLoading = false;
+  String? _error;
 
   int _daysUntilDue(String? dueDate) {
     if (dueDate == null) return 999;
@@ -65,6 +69,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final user = ref.read(authProvider).user;
     final family = ref.read(familyProvider).currentFamily;
     if (user == null || family == null) return;
+
+    if (mounted) setState(() { _isLoading = true; _error = null; });
 
     try {
       final results = await Future.wait([
@@ -116,6 +122,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
       if (mounted) {
         setState(() {
+          _isLoading = false;
           _myChores = myChores;
           _pendingAssignments = pending;
           _recentActivity = history;
@@ -128,7 +135,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Failed to load dashboard data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = e.toString();
+        });
+      }
     }
   }
 
@@ -138,15 +150,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     try {
       await _insightsService.rescheduleChore(family.id, choreId, dayOfWeek, hour);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Schedule updated')),
-        );
+        AppFeedback.success(context, 'Schedule updated');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not update schedule')),
-        );
+        AppFeedback.error(context, 'Could not update schedule');
       }
     }
   }
@@ -201,9 +209,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             await ref.read(choreProvider.notifier).refresh();
             await _loadDashboardData();
           },
-          child: ListView(
+          child: _isLoading
+              ? const SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(20, 16, 20, 100),
+                  child: SkeletonDashboard(),
+                )
+              : ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
             children: [
+              if (_error != null)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: AppTheme.spaceM, vertical: AppTheme.spaceS),
+                  padding: const EdgeInsets.all(AppTheme.spaceM),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentRed.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                    border: Border.all(color: AppTheme.accentRed.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: AppTheme.accentRed, size: 18),
+                      const SizedBox(width: AppTheme.spaceS),
+                      Expanded(child: Text(_error!, style: const TextStyle(color: AppTheme.accentRed, fontSize: AppTheme.fontS))),
+                      IconButton(onPressed: () => setState(() => _error = null), icon: const Icon(Icons.close, size: 16, color: AppTheme.accentRed)),
+                    ],
+                  ),
+                ),
               AnimatedListItem(
                 index: 0,
                 child: Row(
@@ -213,7 +244,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_greeting(), style: TextStyle(fontSize: 14, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+                          Text(_greeting(), style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary, fontWeight: FontWeight.w500)),
                           const SizedBox(height: 2),
                           Text(auth.user?.displayName ?? '', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
                         ],
@@ -229,10 +260,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.local_fire_department_rounded, color: Color(0xFFFF9100), size: 18),
+                            const Icon(Icons.local_fire_department_rounded, color: AppTheme.accentOrange, size: 18),
                             const SizedBox(width: 4),
                             Text('$_streak day${_streak > 1 ? 's' : ''}',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFFF9100))),
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.accentOrange)),
                           ],
                         ),
                       ),
@@ -256,11 +287,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               if (_insightsData != null) const SizedBox(height: 12),
 
               if (_suggestions.isNotEmpty)
-                AnimatedListItem(index: 3, child: SuggestionsCard(suggestions: _suggestions)),
+                AnimatedListItem(index: 4, child: SuggestionsCard(suggestions: _suggestions)),
               if (_suggestions.isNotEmpty) const SizedBox(height: 12),
 
               AnimatedListItem(
-                index: 2,
+                index: 5,
                 child: Row(
                   children: [
                     Expanded(child: _QuickAction(icon: Icons.add_task_rounded, label: 'New Chore', color: AppTheme.accent, onTap: () => context.push('/chores/create'))),
@@ -277,7 +308,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               if (overdueCount > 0)
                 AnimatedListItem(
-                  index: 3,
+                  index: 6,
                   child: GestureDetector(
                     onTap: () {
                       context.go('/chores');
@@ -317,16 +348,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ..._pendingAssignments.map((chore) {
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
-                          color: Colors.orange.withValues(alpha: 0.06),
+                          color: AppTheme.accentOrange.withValues(alpha: 0.06),
                           child: ListTile(
                             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                            leading: const Icon(Icons.assignment_ind_rounded, color: Colors.orange),
+                            leading: const Icon(Icons.assignment_ind_rounded, color: AppTheme.accentOrange),
                             title: Text(chore.title, style: const TextStyle(fontWeight: FontWeight.w600)),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.close_rounded, color: Colors.red, size: 22),
+                                  icon: const Icon(Icons.close_rounded, color: AppTheme.accentRed, size: 22),
                                   onPressed: () async {
                                     await ref.read(choreProvider.notifier).respondToAssignment(chore.id, 'declined');
                                     await _loadDashboardData();
@@ -411,7 +442,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ),
                             const SizedBox(width: 12),
                             Expanded(child: Text(chore.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                            Icon(Icons.chevron_right_rounded, size: 18, color: Colors.grey.shade600),
+                            const Icon(Icons.chevron_right_rounded, size: 18, color: AppTheme.textSecondary),
                           ],
                         ),
                       ),
@@ -463,9 +494,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       padding: const EdgeInsets.all(32),
                       child: Column(
                         children: [
-                          Icon(Icons.task_alt_rounded, size: 48, color: Colors.grey.shade300),
+                          const Icon(Icons.task_alt_rounded, size: 48, color: AppTheme.textSecondary),
                           const SizedBox(height: 12),
-                          Text('No chores yet', style: TextStyle(color: Colors.grey.shade500)),
+                          const Text('No chores yet', style: TextStyle(color: AppTheme.textSecondary)),
                         ],
                       ),
                     ),
