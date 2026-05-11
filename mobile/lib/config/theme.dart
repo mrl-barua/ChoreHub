@@ -72,6 +72,10 @@ class AppTheme {
   static const double iconSizeL  = 24;
   static const double iconSizeXL = 32;
 
+  // Progress bar heights
+  static const double barHeightSm = 8;
+  static const double barHeightLg = 12;
+
   // Shadows
   static List<BoxShadow> get shadowSmall => [
     BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 4, offset: const Offset(0, 1)),

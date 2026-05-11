@@ -1,2 +1,3 @@
-declare const router: import("express-serve-static-core").Router;
-export default router;
+import { Router } from "express";
+import { Server } from "socket.io";
+export default function createChoresRouter(io: Server): Router;

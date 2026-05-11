@@ -3,6 +3,8 @@ package com.chorehub.mobile
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
+import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetProvider
 
@@ -12,12 +14,23 @@ class ChoresWidgetProvider : HomeWidgetProvider() {
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray,
-        widgetData: android.os.Bundle?
+        widgetData: SharedPreferences
     ) {
         for (appWidgetId in appWidgetIds) {
-            val streak = widgetData?.getString("streak") ?: "0"
+            val streak = widgetData.getString("streak", "0") ?: "0"
             val views = RemoteViews(context.packageName, R.layout.widget_chores)
             views.setTextViewText(R.id.tv_header, "Today's Chores · 🔥 $streak day streak")
+
+            // Progression streak row (Kid Motivation Loop). Hidden when missing
+            // or zero so we don't surface "🔥 0" noise.
+            val progressionStreak =
+                widgetData.getString("progression_streak", "0")?.toIntOrNull() ?: 0
+            if (progressionStreak > 0) {
+                views.setTextViewText(R.id.streak_text, "🔥 $progressionStreak")
+                views.setViewVisibility(R.id.streak_text, View.VISIBLE)
+            } else {
+                views.setViewVisibility(R.id.streak_text, View.GONE)
+            }
 
             val intent = Intent(context, ChoresWidgetService::class.java)
             views.setRemoteAdapter(R.id.chores_list, intent)

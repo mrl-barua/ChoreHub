@@ -9,6 +9,7 @@ import '../../models/chore_history.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chore_provider.dart';
 import '../../providers/family_provider.dart';
+import '../../providers/progression_provider.dart';
 import '../../providers/swap_request_provider.dart';
 import '../../services/api_client.dart';
 import '../../services/chore_service.dart';
@@ -118,20 +119,42 @@ class _ChoreDetailScreenState extends ConsumerState<ChoreDetailScreen> {
                 onPressed: () async {
                   Navigator.pop(ctx);
                   try {
-                    await _choreService.completeChore(
+                    final result = await _choreService.completeChore(
                       widget.choreId,
                       note: noteController.text.trim().isEmpty ? null : noteController.text.trim(),
                     );
                     await ref.read(choreProvider.notifier).loadChores();
                     await _loadHistory();
+                    // Refresh progression so XP / level / streak surfaces
+                    // reflect the new state on dashboard + profile.
+                    await ref.read(progressionProvider.notifier).load();
                     if (mounted) {
                       HapticFeedback.mediumImpact();
-                      setState(() => _showConfetti = true);
+                      setState(() {
+                        _showConfetti = true;
+                      });
                       Future.delayed(const Duration(seconds: 2), () {
-                        if (mounted) setState(() => _showConfetti = false);
+                        if (mounted) {
+                          setState(() {
+                            _showConfetti = false;
+                          });
+                        }
                       });
                     }
-                  } catch (_) {
+                    // If the server reports a level-up, fire the global
+                    // takeover via the progression provider. The
+                    // LevelUpListener mounted in the shell handles it.
+                    final award = result.progression;
+                    if (award != null && award.leveledUp && award.newLevel != null) {
+                      ref.read(progressionProvider.notifier).triggerLevelUp(
+                            LevelUpEvent(
+                              newLevel: award.newLevel!,
+                              unlocksGained: award.unlocksGained,
+                              xpAwarded: award.xpAwarded,
+                            ),
+                          );
+                    }
+                  } catch (e) {
                     if (mounted) {
                       AppFeedback.error(context, 'Failed to complete');
                     }

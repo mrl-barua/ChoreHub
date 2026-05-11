@@ -5,6 +5,7 @@ import '../config/theme.dart';
 import '../providers/connectivity_provider.dart';
 import '../providers/message_provider.dart';
 import '../providers/notification_provider.dart';
+import 'level_up_modal.dart';
 
 class ShellScreen extends ConsumerWidget {
   final Widget child;
@@ -21,7 +22,7 @@ class ShellScreen extends ConsumerWidget {
   }
 
   static const _routes = ['/dashboard', '/chores', '/chat', '/family', '/profile'];
-  static const _labels = ['Home', 'Chores', 'Chat', 'Family', 'Profile'];
+  static const _labels = ['Home', 'Chores', 'Chat', 'Family', 'Me'];
   static const _icons = [
     Icons.home_rounded,
     Icons.checklist_rounded,
@@ -46,7 +47,12 @@ class ShellScreen extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: Stack(
+      // LevelUpListener wraps the scaffold body so the level-up takeover
+      // fires no matter which tab the kid is on. Mounting here (rather than
+      // on each tab screen) keeps the level-up surface global and ensures the
+      // listener doesn't unmount during tab switches.
+      body: LevelUpListener(
+        child: Stack(
         children: [
           Column(
         children: [
@@ -75,33 +81,38 @@ class ShellScreen extends ConsumerWidget {
         Positioned(
           top: MediaQuery.of(context).padding.top + 8,
           right: 16,
-          child: GestureDetector(
-            onTap: () => context.push('/notifications'),
-            child: Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                shape: BoxShape.circle,
-                boxShadow: AppTheme.shadowMedium,
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(Icons.notifications_rounded, size: 20, color: colorScheme.onSurface),
-                  Positioned(
-                    top: 6, right: 6,
-                    child: Container(
-                      width: 14, height: 14,
-                      decoration: const BoxDecoration(color: AppTheme.accentRed, shape: BoxShape.circle),
-                      child: Center(child: Text('$notifCount', style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white))),
+          child: Semantics(
+            label: 'Notifications, $notifCount unread',
+            button: true,
+            child: GestureDetector(
+              onTap: () => context.push('/notifications'),
+              child: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  shape: BoxShape.circle,
+                  boxShadow: AppTheme.shadowMedium,
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(Icons.notifications_rounded, size: 20, color: colorScheme.onSurface),
+                    Positioned(
+                      top: 6, right: 6,
+                      child: Container(
+                        width: 18, height: 18,
+                        decoration: const BoxDecoration(color: AppTheme.accentRed, shape: BoxShape.circle),
+                        child: Center(child: Text('$notifCount', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white))),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ],
+      ),
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
@@ -144,7 +155,7 @@ class ShellScreen extends ConsumerWidget {
                           duration: const Duration(milliseconds: 200),
                           curve: Curves.easeOut,
                           child: AnimatedOpacity(
-                            opacity: isSelected ? 1.0 : 0.4,
+                            opacity: isSelected ? 1.0 : 0.55,
                             duration: const Duration(milliseconds: 200),
                             child: Icon(
                               isSelected ? _icons[index] : _outlinedIcons[index],
@@ -182,10 +193,10 @@ class ShellScreen extends ConsumerWidget {
                                   ),
                                 ],
                               ),
-                              constraints: const BoxConstraints(minWidth: 18, minHeight: 16),
+                              constraints: const BoxConstraints(minWidth: 20, minHeight: 16),
                               child: Text(
                                 unreadCount > 99 ? '99+' : '$unreadCount',
-                                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white),
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
                                 textAlign: TextAlign.center,
                               ),
                             ),

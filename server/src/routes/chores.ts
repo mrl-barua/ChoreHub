@@ -3,6 +3,10 @@ import { PrismaClient } from "@prisma/client";
 import { Server } from "socket.io";
 import { authenticate, AuthRequest } from "../middleware/auth";
 import { createNotification } from "../services/notification";
+import {
+  awardProgressionForCompletion,
+  type ProgressionAwardResult,
+} from "../services/progressionDataService";
 
 const prisma = new PrismaClient();
 
@@ -159,41 +163,94 @@ export default function createChoresRouter(io: Server): Router {
           assignmentStatus = assignedTo ? "pending_acceptance" : "unassigned";
         }
 
-        const updated = await prisma.chore.update({
-          where: { id },
-          data: {
-            ...(title !== undefined && { title }),
-            ...(category !== undefined && { category }),
-            ...(timeSlot !== undefined && { timeSlot }),
-            ...(assignedTo !== undefined && { assignedTo }),
-            ...(assignmentStatus !== undefined && { assignmentStatus }),
-            ...(status !== undefined && { status }),
-            ...(dueDate !== undefined && {
-              dueDate: dueDate ? new Date(dueDate) : null,
-            }),
-            ...(priority !== undefined && { priority }),
-            ...(description !== undefined && {
-              description: description || null,
-            }),
-            ...(recurrence !== undefined && { recurrence: recurrence || null }),
-          },
-        });
+        // Idempotency: only award progression on a real non-done -> done
+        // transition. Same gate as POST /:id/complete.
+        const isDoneTransition =
+          status !== undefined && status === "done" && chore.status !== "done";
+        const now = new Date();
+        // Use a holder object so the closure assignment inside $transaction is
+        // not narrowed to `never` by TypeScript's control-flow analysis.
+        const progressionHolder: { award: ProgressionAwardResult | null } = {
+          award: null,
+        };
 
-        // Record history for status changes
-        if (status !== undefined && status !== chore.status) {
-          if (status === "done") {
-            await recordHistory(id, chore.familyId, req.userId!, "completed");
-          } else if (status === "pending" && chore.status === "done") {
-            await recordHistory(id, chore.familyId, req.userId!, "reopened");
+        // All status / history / progression writes live in one transaction
+        // so the kid never sees partial state. Other PATCH side-effects
+        // (cascade swap cancel, notifications, sockets) run after commit.
+        const updated = await prisma.$transaction(async (tx) => {
+          const updatedChore = await tx.chore.update({
+            where: { id },
+            data: {
+              ...(title !== undefined && { title }),
+              ...(category !== undefined && { category }),
+              ...(timeSlot !== undefined && { timeSlot }),
+              ...(assignedTo !== undefined && { assignedTo }),
+              ...(assignmentStatus !== undefined && { assignmentStatus }),
+              ...(status !== undefined && { status }),
+              ...(dueDate !== undefined && {
+                dueDate: dueDate ? new Date(dueDate) : null,
+              }),
+              ...(priority !== undefined && { priority }),
+              ...(description !== undefined && {
+                description: description || null,
+              }),
+              ...(recurrence !== undefined && {
+                recurrence: recurrence || null,
+              }),
+            },
+          });
+
+          // Record history for status changes inside the same tx so the
+          // history row is a precondition for the progression award.
+          if (status !== undefined && status !== chore.status) {
+            if (status === "done") {
+              await tx.choreHistory.create({
+                data: {
+                  choreId: id,
+                  familyId: chore.familyId,
+                  userId: req.userId!,
+                  action: "completed",
+                },
+              });
+            } else if (status === "pending" && chore.status === "done") {
+              await tx.choreHistory.create({
+                data: {
+                  choreId: id,
+                  familyId: chore.familyId,
+                  userId: req.userId!,
+                  action: "reopened",
+                },
+              });
+            }
           }
-        }
-        if (
-          assignedTo !== undefined &&
-          assignedTo !== chore.assignedTo &&
-          assignedTo
-        ) {
-          await recordHistory(id, chore.familyId, req.userId!, "assigned");
-        }
+          if (
+            assignedTo !== undefined &&
+            assignedTo !== chore.assignedTo &&
+            assignedTo
+          ) {
+            await tx.choreHistory.create({
+              data: {
+                choreId: id,
+                familyId: chore.familyId,
+                userId: req.userId!,
+                action: "assigned",
+              },
+            });
+          }
+
+          // Award progression iff this PATCH is the non-done -> done
+          // transition. Streak-day bonus is deferred (lazy at GET).
+          if (isDoneTransition) {
+            progressionHolder.award = await awardProgressionForCompletion(
+              tx,
+              req.userId!,
+              updatedChore.dueDate,
+              now,
+            );
+          }
+
+          return updatedChore;
+        });
 
         // Cascade-cancel pending swaps when chore is set to done
         if (status !== undefined && status === "done" && chore.status !== "done") {
@@ -221,7 +278,24 @@ export default function createChoresRouter(io: Server): Router {
           }
         }
 
-        res.json(updated);
+        // Augment response with progression data when this PATCH transitioned
+        // the chore to done. Mobile uses this to drive the level-up modal.
+        const award = progressionHolder.award;
+        if (award) {
+          res.json({
+            ...updated,
+            progression: {
+              xpAwarded: award.xpAwarded,
+              leveledUp: award.leveledUp,
+              newLevel: award.newLevel,
+              unlocksGained: award.unlocksGained,
+              streakIncremented: award.streakIncremented,
+              badgesEarned: award.badgesEarned,
+            },
+          });
+        } else {
+          res.json(updated);
+        }
       } catch (error) {
         console.error("Update chore error:", error);
         res.status(500).json({ error: "Internal server error" });
@@ -300,38 +374,93 @@ export default function createChoresRouter(io: Server): Router {
           return;
         }
 
-        await prisma.chore.update({ where: { id }, data: { status: "done" } });
+        // Idempotency: if the chore is already done, do not double-award
+        // progression and do not re-record history. The PRD calls this out
+        // explicitly under "Atomicity at chore completion" / "Idempotency on
+        // completion": completing the same chore twice (e.g., a network
+        // retry) must not double-award XP.
+        const wasAlreadyDone = chore.status === "done";
 
-        // Record history with note
-        await prisma.choreHistory.create({
-          data: {
-            choreId: id,
-            familyId: chore.familyId,
-            userId: req.userId!,
-            action: note ? `completed: ${note}` : "completed",
-          },
-        });
+        const now = new Date();
+        // Holder object so the closure assignment inside $transaction is
+        // not narrowed to `never` by TypeScript's control-flow analysis.
+        const progressionHolder: { award: ProgressionAwardResult | null } = {
+          award: null,
+        };
 
-        // Cancel pending swaps for this chore
-        const pendingSwaps = await prisma.choreSwapRequest.findMany({
-          where: { choreId: id, status: "pending" },
-        });
-        if (pendingSwaps.length > 0) {
-          await prisma.choreSwapRequest.updateMany({
-            where: { choreId: id, status: "pending" },
-            data: { status: "cancelled" },
-          });
-          for (const s of pendingSwaps) {
-            io.to(`family:${s.familyId}`).emit("swap_request_updated", {
-              swapRequestId: s.id,
-              choreId: s.choreId,
-              status: "cancelled",
-              actorUserId: req.userId,
+        // All progression-related writes live in the same $transaction as the
+        // chore status update so the kid never sees partial state on a
+        // dashboard refresh (PRD: "user story 39"). Sockets are emitted AFTER
+        // the transaction commits so a transaction rollback never produces
+        // phantom socket events.
+        await prisma.$transaction(async (tx) => {
+          if (!wasAlreadyDone) {
+            await tx.chore.update({
+              where: { id },
+              data: { status: "done" },
             });
+
+            await tx.choreHistory.create({
+              data: {
+                choreId: id,
+                familyId: chore.familyId,
+                userId: req.userId!,
+                action: note ? `completed: ${note}` : "completed",
+              },
+            });
+
+            // Award progression. Streak-day bonus is intentionally skipped
+            // here — the streak service awards it lazily at the next
+            // GET /api/me/progression call when end-of-day evaluation
+            // determines whether all due-today chores were completed.
+            progressionHolder.award = await awardProgressionForCompletion(
+              tx,
+              req.userId!,
+              chore.dueDate,
+              now,
+            );
+          }
+        });
+
+        // Cancel pending swaps for this chore — kept outside the transaction
+        // so that the tx stays scoped to the kid's progression slice. The
+        // socket emit is also outside the tx (see comment above).
+        if (!wasAlreadyDone) {
+          const pendingSwaps = await prisma.choreSwapRequest.findMany({
+            where: { choreId: id, status: "pending" },
+          });
+          if (pendingSwaps.length > 0) {
+            await prisma.choreSwapRequest.updateMany({
+              where: { choreId: id, status: "pending" },
+              data: { status: "cancelled" },
+            });
+            for (const s of pendingSwaps) {
+              io.to(`family:${s.familyId}`).emit("swap_request_updated", {
+                swapRequestId: s.id,
+                choreId: s.choreId,
+                status: "cancelled",
+                actorUserId: req.userId,
+              });
+            }
           }
         }
 
-        res.json({ success: true });
+        const completeAward = progressionHolder.award;
+        res.json({
+          success: true,
+          ...(completeAward
+            ? {
+                progression: {
+                  xpAwarded: completeAward.xpAwarded,
+                  leveledUp: completeAward.leveledUp,
+                  newLevel: completeAward.newLevel,
+                  unlocksGained: completeAward.unlocksGained,
+                  streakIncremented: completeAward.streakIncremented,
+                  badgesEarned: completeAward.badgesEarned,
+                },
+              }
+            : {}),
+        });
       } catch (error) {
         console.error("Complete chore error:", error);
         res.status(500).json({ error: "Internal server error" });

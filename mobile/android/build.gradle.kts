@@ -1,6 +1,11 @@
 buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
     dependencies {
-        classpath("com.google.gms:google-services:4.4.2")
+        // FCM disabled — re-enable once mobile/android/app/google-services.json is provided.
+        // classpath("com.google.gms:google-services:4.4.2")
     }
 }
 
@@ -20,6 +25,20 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+}
+
+subprojects {
+    val configureJavaCompile: Project.() -> Unit = {
+        tasks.withType<JavaCompile>().configureEach {
+            sourceCompatibility = JavaVersion.VERSION_11.toString()
+            targetCompatibility = JavaVersion.VERSION_11.toString()
+        }
+    }
+    if (state.executed) {
+        configureJavaCompile()
+    } else {
+        afterEvaluate { configureJavaCompile() }
+    }
 }
 
 tasks.register<Delete>("clean") {

@@ -23,6 +23,7 @@ import '../../models/insights.dart';
 import '../../services/insights_service.dart';
 import '../../widgets/insights_card.dart';
 import '../../widgets/skeleton_loader.dart';
+import '../../widgets/streak_card.dart';
 import '../../providers/swap_request_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -43,7 +44,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   List<ChoreHistory> _recentActivity = [];
   List<Chore> _upcomingDue = [];
   List<Chore> _doneToday = [];
-  int _streak = 0;
   Map<String, dynamic>? _weeklySummary;
   List<dynamic> _suggestions = [];
   bool _isLoading = false;
@@ -77,7 +77,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final results = await Future.wait([
         _choreService.loadChores(family.id),
         _choreService.loadFamilyHistory(family.id, limit: 10),
-        _choreService.loadAnalytics(family.id),
       ]);
 
       Map<String, dynamic>? weeklySummary;
@@ -102,11 +101,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
       final allChores = results[0] as List<Chore>;
       final history = results[1] as List<ChoreHistory>;
-      final analytics = results[2] as Map<String, dynamic>;
 
       final myChores = allChores.where((c) => c.assignedTo == user.id && !c.isDone).toList();
       final pending = allChores.where((c) => c.assignedTo == user.id && c.isPendingAcceptance).toList();
-      final streak = analytics['currentStreak'] as int? ?? 0;
 
       final now = DateTime.now();
       final upcoming = allChores.where((c) {
@@ -129,7 +126,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           _recentActivity = history;
           _upcomingDue = upcoming;
           _doneToday = doneToday;
-          _streak = streak;
           _weeklySummary = weeklySummary;
           _suggestions = suggestions;
           _insightsData = insightsData;
@@ -219,11 +215,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               : ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
             children: [
-              if (swapState.incoming.isNotEmpty)
+              AnimatedListItem(
+                index: 0,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_greeting(), style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 2),
+                    Text(auth.user?.displayName ?? '', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              const StreakCard(),
+              const SizedBox(height: 16),
+
+              if (swapState.incoming.isNotEmpty) ...[
                 GestureDetector(
                   onTap: () => context.push('/swap-requests'),
                   child: Container(
-                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: AppTheme.accentOrange.withValues(alpha: 0.12),
@@ -245,6 +256,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+              ],
+
               if (_error != null)
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: AppTheme.spaceM, vertical: AppTheme.spaceS),
@@ -263,76 +277,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ],
                   ),
                 ),
-              AnimatedListItem(
-                index: 0,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(_greeting(), style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary, fontWeight: FontWeight.w500)),
-                          const SizedBox(height: 2),
-                          Text(auth.user?.displayName ?? '', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
-                        ],
-                      ),
-                    ),
-                    if (_streak > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentOrange.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.local_fire_department_rounded, color: AppTheme.accentOrange, size: 18),
-                            const SizedBox(width: 4),
-                            Text('$_streak day${_streak > 1 ? 's' : ''}',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.accentOrange)),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              AnimatedListItem(index: 1, child: DashboardStats(stats: chores.stats)),
-              const SizedBox(height: 16),
-
-              if (_weeklySummary != null)
-                AnimatedListItem(index: 2, child: WeeklySummaryCard(data: _weeklySummary!)),
-              if (_weeklySummary != null) const SizedBox(height: 12),
-
-              if (_insightsData != null)
-                AnimatedListItem(
-                  index: 3,
-                  child: InsightsCard(data: _insightsData!, onReschedule: _onReschedule),
-                ),
-              if (_insightsData != null) const SizedBox(height: 12),
-
-              if (_suggestions.isNotEmpty)
-                AnimatedListItem(index: 4, child: SuggestionsCard(suggestions: _suggestions)),
-              if (_suggestions.isNotEmpty) const SizedBox(height: 12),
-
-              AnimatedListItem(
-                index: 5,
-                child: Row(
-                  children: [
-                    Expanded(child: _QuickAction(icon: Icons.add_task_rounded, label: 'New Chore', color: AppTheme.accent, onTap: () => context.push('/chores/create'))),
-                    const SizedBox(width: 10),
-                    Expanded(child: _QuickAction(icon: Icons.analytics_rounded, label: 'Analytics', color: AppTheme.accentBlue, onTap: () => context.push('/analytics'))),
-                    const SizedBox(width: 10),
-                    Expanded(child: _QuickAction(icon: Icons.person_add_rounded, label: 'Invite', color: AppTheme.accentGreen, onTap: () => context.push('/family/invite'))),
-                    const SizedBox(width: 10),
-                    Expanded(child: _QuickAction(icon: Icons.people_rounded, label: '${family.members.length}', color: AppTheme.accentOrange, onTap: () => context.go('/family'))),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
 
               if (overdueCount > 0)
                 AnimatedListItem(
@@ -503,6 +447,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ],
 
               AnimatedListItem(
+                index: 5,
+                child: Row(
+                  children: [
+                    Expanded(child: _QuickAction(icon: Icons.today_rounded, label: 'Today\'s Chores', color: AppTheme.accent, onTap: () {
+                      context.go('/chores');
+                      ref.read(choreProvider.notifier).setFilter('today');
+                    })),
+                    const SizedBox(width: 10),
+                    Expanded(child: _QuickAction(icon: Icons.emoji_events_rounded, label: 'My Badges', color: AppTheme.accentBlue, onTap: () => context.go('/profile'))),
+                    const SizedBox(width: 10),
+                    Expanded(child: _QuickAction(icon: Icons.people_rounded, label: 'Family', color: AppTheme.accentGreen, onTap: () => context.go('/family'))),
+                    const SizedBox(width: 10),
+                    Expanded(child: _QuickAction(icon: Icons.add_task_rounded, label: 'New Chore', color: AppTheme.accentOrange, onTap: () => context.push('/chores/create'))),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              AnimatedListItem(index: 1, child: DashboardStats(stats: chores.stats)),
+              const SizedBox(height: 16),
+
+              if (_weeklySummary != null)
+                AnimatedListItem(index: 2, child: WeeklySummaryCard(data: _weeklySummary!)),
+              if (_weeklySummary != null) const SizedBox(height: 12),
+
+              if (_insightsData != null)
+                AnimatedListItem(
+                  index: 3,
+                  child: InsightsCard(data: _insightsData!, onReschedule: _onReschedule),
+                ),
+              if (_insightsData != null) const SizedBox(height: 12),
+
+              if (_suggestions.isNotEmpty)
+                AnimatedListItem(index: 4, child: SuggestionsCard(suggestions: _suggestions)),
+              if (_suggestions.isNotEmpty) const SizedBox(height: 12),
+
+              AnimatedListItem(
                 index: 10,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -541,7 +522,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       assigneeName: assignee?.user?.displayName,
                       onToggle: () async {
                         await ref.read(choreProvider.notifier).toggleStatus(chore.id);
-                        await _loadDashboardData();
                       },
                       onTap: () => context.push('/chores/${chore.id}'),
                     ),
@@ -623,16 +603,16 @@ class _QuickAction extends StatelessWidget {
         child: Column(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 18),
+              child: Icon(icon, color: color, size: 22),
             ),
             const SizedBox(height: 8),
-            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)), textAlign: TextAlign.center),
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)), textAlign: TextAlign.center),
           ],
         ),
       ),

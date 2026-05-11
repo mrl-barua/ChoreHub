@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -20,6 +53,8 @@ const invitations_1 = __importDefault(require("./routes/invitations"));
 const sync_1 = __importDefault(require("./routes/sync"));
 const messages_1 = __importDefault(require("./routes/messages"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
+const swap_requests_1 = __importDefault(require("./routes/swap-requests"));
+const me_progression_1 = __importDefault(require("./routes/me-progression"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const httpServer = (0, http_1.createServer)(app);
@@ -235,16 +270,24 @@ app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 app.use('/api/auth', auth_1.default);
 app.use('/api/users', users_1.default);
-app.use('/api/families', families_1.default);
-app.use('/api/chores', chores_1.default);
+app.use('/api/families', (0, families_1.default)(io));
+app.use('/api/chores', (0, chores_1.default)(io));
 app.use('/api/invitations', invitations_1.default);
 app.use('/api/sync', sync_1.default);
 app.use('/api/messages', messages_1.default);
 app.use('/api/notifications', notifications_1.default);
+app.use('/api/swap-requests', (0, swap_requests_1.default)(io));
+app.use('/api/me/progression', me_progression_1.default);
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
 });
-httpServer.listen(Number(PORT), '0.0.0.0', () => {
+httpServer.listen(Number(PORT), '0.0.0.0', async () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
+    if (process.env.ENABLE_CRON !== 'false') {
+        const { startDueSoonReminder } = await Promise.resolve().then(() => __importStar(require('./jobs/dueSoonReminder')));
+        const { startDailySummary } = await Promise.resolve().then(() => __importStar(require('./jobs/dailySummary')));
+        startDueSoonReminder();
+        startDailySummary();
+    }
 });
 exports.default = app;

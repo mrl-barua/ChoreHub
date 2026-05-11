@@ -16,6 +16,7 @@ import syncRoutes from './routes/sync';
 import messageRoutes from './routes/messages';
 import notificationRoutes from './routes/notifications';
 import createSwapRequestsRouter from './routes/swap-requests';
+import meProgressionRoutes from './routes/me-progression';
 
 dotenv.config();
 
@@ -253,6 +254,7 @@ app.use('/api/sync', syncRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/swap-requests', createSwapRequestsRouter(io));
+app.use('/api/me/progression', meProgressionRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });

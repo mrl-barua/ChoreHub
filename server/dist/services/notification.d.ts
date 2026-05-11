@@ -5,7 +5,7 @@ export declare function createNotification(userId: string, familyId: string, typ
     userId: string;
     familyId: string;
     title: string;
-    type: string;
     body: string;
+    type: string;
     read: boolean;
 }>;

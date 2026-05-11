@@ -12,7 +12,7 @@ class HomeWidgetService {
   HomeWidgetService._();
   static final instance = HomeWidgetService._();
 
-  Future<void> update(WidgetRef ref) async {
+  Future<void> update(Ref ref) async {
     try {
       final authState = ref.read(authProvider);
       final familyState = ref.read(familyProvider);
@@ -67,6 +67,19 @@ class HomeWidgetService {
       await HomeWidget.saveWidgetData<String>('streak', streak.toString());
       await HomeWidget.saveWidgetData<String>(
           'lastUpdated', DateTime.now().toIso8601String());
+      await HomeWidget.updateWidget(
+        qualifiedAndroidName: 'com.chorehub.mobile.ChoresWidgetProvider',
+      );
+    } catch (_) {
+      // Widget update failures must never crash the app
+    }
+  }
+
+  // TODO: provider wiring — call this from ProgressionNotifier after a successful load() to keep the widget in sync.
+  Future<void> updateProgressionStreak(int streak) async {
+    try {
+      await HomeWidget.saveWidgetData<String>(
+          'progression_streak', streak.toString());
       await HomeWidget.updateWidget(
         qualifiedAndroidName: 'com.chorehub.mobile.ChoresWidgetProvider',
       );

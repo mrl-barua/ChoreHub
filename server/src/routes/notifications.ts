@@ -80,7 +80,7 @@ router.post('/device-token', authenticate, async (req: AuthRequest, res: Respons
 
 // DELETE /api/notifications/device-token/:token
 router.delete('/device-token/:token', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
-  const { token } = req.params;
+  const token = String(req.params.token);
   try {
     await prisma.deviceToken.deleteMany({ where: { token, userId: req.userId! } });
     res.json({ success: true });

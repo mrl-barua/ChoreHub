@@ -90,7 +90,7 @@ Access tokens expire in 15 minutes; refresh tokens expire in 7 days.
 GoRouter with a shell route (`mobile/lib/widgets/shell_screen.dart`) providing 5-tab bottom navigation: Dashboard, Chores, Chat, Family, Profile. Auth guard in `mobile/lib/app.dart` redirects unauthenticated users to `/login` and authenticated users on auth routes to `/dashboard`.
 
 ### Theming
-Dark theme only — `lightTheme` is aliased to `darkTheme` in `mobile/lib/config/theme.dart`. Use `AppTheme.*` static members for custom colors, **not** `Theme.of(context).colorScheme` for app-specific design tokens.
+Dual-mode — `mobile/lib/config/theme.dart` exposes distinct `lightTheme` and `darkTheme` getters; both are real implementations (light mode uses white cards / dark text; dark mode uses the original surface set). Mode follows the system. Use `AppTheme.*` static members for app-specific design tokens (brand colors, spacing, radii); use `Theme.of(context).cardTheme.color` etc. when the value must flip with the active mode. New widgets must render correctly in both modes — verify before shipping.
 
 ## Common Pitfalls
 

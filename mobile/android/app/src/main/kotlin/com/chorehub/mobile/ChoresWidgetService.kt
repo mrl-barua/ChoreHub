@@ -45,7 +45,7 @@ class ChoresRemoteViewsFactory(private val context: Context) : RemoteViewsServic
     override fun getViewTypeCount() = 1
     override fun getLoadingView(): RemoteViews? = null
 
-    override fun getView(position: Int, convertView: RemoteViews?, parent: android.widget.AdapterView<*>?): RemoteViews {
+    override fun getViewAt(position: Int): RemoteViews {
         val row = chores.getOrNull(position) ?: return RemoteViews(context.packageName, R.layout.widget_chore_row)
         val views = RemoteViews(context.packageName, R.layout.widget_chore_row)
         views.setTextViewText(R.id.tv_chore_title, row.title)

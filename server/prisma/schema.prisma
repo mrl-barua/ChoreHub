@@ -19,10 +19,33 @@ model User {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  deviceTokens            DeviceToken[]
-  notificationPreference  NotificationPreference?
+  xp               Int       @default(0)
+  level            Int       @default(1)
+  currentStreak    Int       @default(0) @map("current_streak")
+  longestStreak    Int       @default(0) @map("longest_streak")
+  lastStreakEvalAt DateTime? @map("last_streak_eval_at")
+  freezesAvailable Int       @default(0) @map("freezes_available")
+  lastMendAt       DateTime? @map("last_mend_at")
+  displayTitle     String?   @map("display_title")
+
+  deviceTokens           DeviceToken[]
+  notificationPreference NotificationPreference?
+  userBadges             UserBadge[]
 
   @@map("users")
+}
+
+model UserBadge {
+  id       String   @id @default(uuid())
+  userId   String   @map("user_id")
+  badgeKey String   @map("badge_key")
+  earnedAt DateTime @default(now()) @map("earned_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeKey])
+  @@index([userId])
+  @@map("user_badges")
 }
 
 model Family {
@@ -64,22 +87,22 @@ model Invitation {
 }
 
 model Chore {
-  id         String    @id @default(uuid())
-  familyId   String    @map("family_id")
-  title      String
-  category   String
-  timeSlot   String?   @map("time_slot")
-  assignedTo       String?   @map("assigned_to")
-  status           String    @default("pending")
-  assignmentStatus String    @default("unassigned") @map("assignment_status")
-  priority         String    @default("medium")
-  description      String?
-  recurrence       String?
-  dueDate                DateTime? @map("due_date")
-  dueSoonReminderSentAt  DateTime? @map("due_soon_reminder_sent_at")
-  createdBy  String    @map("created_by")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
+  id                    String    @id @default(uuid())
+  familyId              String    @map("family_id")
+  title                 String
+  category              String
+  timeSlot              String?   @map("time_slot")
+  assignedTo            String?   @map("assigned_to")
+  status                String    @default("pending")
+  assignmentStatus      String    @default("unassigned") @map("assignment_status")
+  priority              String    @default("medium")
+  description           String?
+  recurrence            String?
+  dueDate               DateTime? @map("due_date")
+  dueSoonReminderSentAt DateTime? @map("due_soon_reminder_sent_at")
+  createdBy             String    @map("created_by")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
@@ -117,7 +140,7 @@ model Message {
   mentions  String?
   replyToId String?   @map("reply_to_id")
   imageUrl  String?   @map("image_url")
-  reactions String?   // JSON: {"emoji": ["userId1","userId2"]}
+  reactions String? // JSON: {"emoji": ["userId1","userId2"]}
   deletedAt DateTime? @map("deleted_at")
   createdAt DateTime  @default(now()) @map("created_at")
 
@@ -185,19 +208,22 @@ model DeviceToken {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@map("device_tokens")
 }
 
 model NotificationPreference {
-  id               String   @id @default(cuid())
-  userId           String   @unique
-  pushEnabled      Boolean  @default(true)
-  choreAssigned    Boolean  @default(true)
-  choreCompleted   Boolean  @default(true)
-  choreDueSoon     Boolean  @default(true)
-  mention          Boolean  @default(true)
-  swap             Boolean  @default(true)
-  dailySummary     Boolean  @default(true)
-  quietHoursStart  String?  @default("22:00")
-  quietHoursEnd    String?  @default("07:00")
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  pushEnabled     Boolean @default(true)
+  choreAssigned   Boolean @default(true)
+  choreCompleted  Boolean @default(true)
+  choreDueSoon    Boolean @default(true)
+  mention         Boolean @default(true)
+  swap            Boolean @default(true)
+  dailySummary    Boolean @default(true)
+  quietHoursStart String? @default("22:00")
+  quietHoursEnd   String? @default("07:00")
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
 }

@@ -18,15 +18,28 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ConnectivityService().initialize();
 
+  // FCM init is best-effort: without google-services.json the native side
+  // throws and we want the rest of the app (chores, chat, progression) to
+  // still come up. Re-enable strict init once Firebase config is provided.
+  bool firebaseReady = false;
   if (Platform.isAndroid) {
-    await Firebase.initializeApp();
-    FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
+    try {
+      await Firebase.initializeApp();
+      FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
+      firebaseReady = true;
+    } catch (e) {
+      debugPrint('[FCM] Firebase init failed (continuing without push): $e');
+    }
   }
 
   final container = ProviderContainer();
 
-  if (Platform.isAndroid) {
-    await PushNotificationService.instance.init(container);
+  if (Platform.isAndroid && firebaseReady) {
+    try {
+      await PushNotificationService.instance.init(container);
+    } catch (e) {
+      debugPrint('[FCM] Push notification init failed: $e');
+    }
   }
 
   runApp(

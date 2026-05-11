@@ -12,6 +12,7 @@ import '../../services/user_service.dart';
 import '../../utils/clipboard_helpers.dart';
 import '../../widgets/animated_list_item.dart';
 import '../../widgets/polished_bottom_sheet.dart';
+import '../../widgets/progression_section.dart';
 import '../../widgets/skeleton_loader.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -252,9 +253,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 16),
 
+            const AnimatedListItem(
+              index: 1,
+              child: ProgressionSection(),
+            ),
+            const SizedBox(height: 16),
+
             if (_statsLoading)
               AnimatedListItem(
-                index: 1,
+                index: 2,
                 child: const SkeletonStats(),
               )
             else if (_statsError != null)
